@@ -1,14 +1,35 @@
 module.exports = {
-  // Change these whenever you want.
-  welcomeChannelId: process.env.WELCOME_CHANNEL_ID || "",
-  leaveChannelId: process.env.LEAVE_CHANNEL_ID || "",
-  applicationChannelId: process.env.APPLICATION_CHANNEL_ID || "",
+  // ==============================
+  // CHANNEL IDS
+  // ==============================
 
-  // The questions are intentionally simple so you can replace them.
+  // Channel where welcome messages are sent
+  welcomeChannelId: "PUT_WELCOME_CHANNEL_ID_HERE",
+
+  // Channel where leave messages are sent
+  leaveChannelId: "PUT_LEAVE_CHANNEL_ID_HERE",
+
+  // Channel where completed applications are sent
+  applicationChannelId: "PUT_APPLICATION_CHANNEL_ID_HERE",
+
+  // ==============================
+  // PAID AD
+  // ==============================
+
+  paidAd: {
+    title: "PAID AD",
+    message: "Your paid advertisement message goes here."
+  },
+
+  // ==============================
+  // APPLICATIONS
+  // ==============================
+
   applications: {
     staff: {
       name: "Staff Application",
       emoji: "🛡️",
+
       questions: [
         "What is your Discord username and ID?",
         "How old are you?",
@@ -23,6 +44,7 @@ module.exports = {
     partner: {
       name: "Partner Manager Application",
       emoji: "🤝",
+
       questions: [
         "What is your Discord username and ID?",
         "How old are you?",
@@ -37,6 +59,7 @@ module.exports = {
     builder: {
       name: "Builder Application",
       emoji: "🏗️",
+
       questions: [
         "What is your Discord username and ID?",
         "How old are you?",
