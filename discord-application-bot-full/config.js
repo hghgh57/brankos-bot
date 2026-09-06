@@ -1,23 +1,29 @@
 module.exports = {
-  // ==============================
+  // ==================================================
   // CHANNEL IDS
-  // ==============================
+  // ==================================================
 
-  // Channel where welcome messages are sent
+  // Welcome messages are sent here
   welcomeChannelId: "PUT_WELCOME_CHANNEL_ID_HERE",
 
-  // Channel where leave messages are sent
+  // Leave messages are sent here
   leaveChannelId: "PUT_LEAVE_CHANNEL_ID_HERE",
 
-  // Channel where completed applications are sent
+  // Application panel is sent here
   applicationChannelId: "PUT_APPLICATION_CHANNEL_ID_HERE",
 
-  // ==============================
-  // PAID AD
-  // ==============================
-paidAd: {
-  title: "💰 PAID ADVERTISEMENTS",
-  message: `#  ** <a:coins:1538972519950848080>   __PAID ADVERTISMENTS__    **  
+  // Ticket transcripts are sent here
+  transcriptChannelId: "PUT_TRANSCRIPT_CHANNEL_ID_HERE",
+
+
+  // ==================================================
+  // PAID ADVERTISEMENT
+  // ==================================================
+
+  paidAd: {
+    title: "💰 PAID ADVERTISEMENTS",
+
+    message: `#  ** <a:coins:1538972519950848080>   __PAID ADVERTISMENTS__    **  
  
  
 ## <a:Pings:1538972837056876625>  •  Ping Options: 
@@ -26,6 +32,7 @@ paidAd: {
 - ** @here = \`1,00€\`** 
 - ** <@&1438912689186406411>  = \`2,50€\`** 
 - ** @everyone = \`3,00€\`** 
+
 ### Weekend Prices : 
 - ** @here = \`2,00€\`** 
 - ** <@&1438912689186406411>   = \`3,50€\` (everyone except famous people) ** 
@@ -54,86 +61,254 @@ paidAd: {
 > - If your server breaks **Donut Rules or Discord Terms of Service** , your ad will be removed (or won't be posted). 
 > - Once your ad is approved and posted, you cannot change the **text, ping, or the ad without prior approval.** 
 > - **Payment** goes through <@1253357195479748678>  **__ONLY__**`
-},
-  // ==============================
+  },
+
+
+  // ==================================================
+  // TICKETS
+  // ==================================================
+
+  tickets: {
+
+    // ==================================================
+    // 🔴 SUPPORT TICKET
+    // ==================================================
+
+    support: {
+
+      // This controls the ticket channel name
+      name: "support",
+
+      // THIS controls the button name
+      label: "Support",
+
+      // THIS controls the button emoji
+      emoji: "",
+
+      // THIS controls the ticket button colour
+      color: 0xFF0000,
+
+      // Category where the ticket is created
+      categoryId: "1510706105490342131"
+    },
+
+
+    // ==================================================
+    // 🟢 PARTNER TICKET
+    // ==================================================
+
+    partner: {
+
+      // Ticket channel name
+      name: "partner",
+
+      // THIS controls the button name
+      label: "Partner",
+
+      // THIS controls the button emoji
+      emoji: "",
+
+      // THIS controls the ticket embed colour
+      color: 0x00FF00,
+
+      // Category where the ticket is created
+      categoryId: "1510706100998111473"
+    },
+
+
+    // ==================================================
+    // 🟢 BUY/SELL SPAWNERS TICKET
+    // ==================================================
+
+    spawners: {
+
+      // Ticket channel name
+      name: "buy-sell-spawners",
+
+      // THIS controls the button name
+      label: "Buy/Sell Spawners",
+
+      // THIS controls the button emoji
+      emoji: "",
+
+      // THIS controls the ticket embed colour
+      color: 0x00FF00,
+
+      // Category where the ticket is created
+      categoryId: "1510706100998111473"
+    },
+
+
+    // ==================================================
+    // 🔵 SPONSOR TICKET
+    // ==================================================
+
+    sponsor: {
+
+      // Ticket channel name
+      name: "sponsor",
+
+      // THIS controls the button name
+      label: "Sponsor",
+
+      // THIS controls the button emoji
+      emoji: "",
+
+      // THIS controls the ticket embed colour
+      color: 0x0000FF,
+
+      // Category where the ticket is created
+      categoryId: "1526976384826736641"
+    }
+  },
+
+
+  // ==================================================
   // APPLICATIONS
-  // ==============================
+  // ==================================================
 
   applications: {
- staff: {
-  name: "Staff Application",
-  emoji: "🛡️",
 
-  questions: [
-    {
-      type: "text",
-      question: "What is your Discord username and ID?"
+    // ==================================================
+    // 🛡️ STAFF APPLICATION
+    // ==================================================
+
+    staff: {
+      name: "Staff Application",
+      emoji: "🛡️",
+
+      questions: [
+
+        {
+          type: "text",
+          question: "What is your Discord username and ID?"
+        },
+
+        {
+          type: "yesno",
+          question: "Do you have previous staff experience?"
+        },
+
+        {
+          type: "text",
+          question: "If yes, where have you previously been staff?"
+        },
+
+        {
+          type: "yesno",
+          question: "Are you able to be active every day?"
+        },
+
+        {
+          type: "text",
+          question: "Why do you want to become staff?"
+        },
+
+        {
+          type: "text",
+          question: "How would you handle someone breaking the rules?"
+        },
+
+        {
+          type: "text",
+          question: "Why should we choose you?"
+        }
+      ]
     },
 
-    {
-      type: "yesno",
-      question: "Do you have previous experience as a staff member?"
-    },
 
-    {
-      type: "text",
-      question: "If yes, list the servers where you have been staff."
-    },
-
-    {
-      type: "text",
-      question: "Why do you want to join our Staff Team?"
-    },
-
-    {
-      type: "yesno",
-      question: "Are you able to be active every day on our server?"
-    },
-
-    {
-      type: "text",
-      question: "How long can you be active during the day in our server?"
-    },
-
-    {
-      type: "text",
-      question: "How would you handle someone breaking the rules?"
-    },
-
-    {
-      type: "text",
-      question: "Why should we choose you over other applicants?"
-    }
-  ]
-},
+    // ==================================================
+    // 🤝 PARTNER MANAGER APPLICATION
+    // ==================================================
 
     partner: {
       name: "Partner Manager Application",
       emoji: "🤝",
 
       questions: [
-        "What is your Discord username and ID?",
-        "How old are you?",
-        "Why do you want to become a Partner Manager?",
-        "How many partnerships could you realistically get each week?",
-        "How would you find new servers to partner with?",
-        "What makes a good partnership?",
-        "Why should we choose you?"
+
+        {
+          type: "text",
+          question: "What is your Discord username and ID?"
+        },
+
+        {
+          type: "text",
+          question: "How old are you?"
+        },
+
+        {
+          type: "text",
+          question: "Why do you want to become a Partner Manager?"
+        },
+
+        {
+          type: "text",
+          question: "How many partnerships could you realistically get each week?"
+        },
+
+        {
+          type: "text",
+          question: "How would you find new servers to partner with?"
+        },
+
+        {
+          type: "text",
+          question: "What makes a good partnership?"
+        },
+
+        {
+          type: "text",
+          question: "Why should we choose you?"
+        }
       ]
     },
+
+
+    // ==================================================
+    // 🏗️ BUILDER APPLICATION
+    // ==================================================
 
     builder: {
       name: "Builder Application",
       emoji: "🏗️",
 
       questions: [
-        "What is your Discord username and ID?",
-        "How old are you?",
-        "Why do you want to become a Builder?",
-        "What building experience do you have?",
-        "What building tools/plugins do you know?",
-        "What type of builds are you best at?",
-        "Why should we choose you?"
+
+        {
+          type: "text",
+          question: "What is your Discord username and ID?"
+        },
+
+        {
+          type: "text",
+          question: "How old are you?"
+        },
+
+        {
+          type: "text",
+          question: "Why do you want to become a Builder?"
+        },
+
+        {
+          type: "text",
+          question: "What building experience do you have?"
+        },
+
+        {
+          type: "text",
+          question: "What building tools/plugins do you know?"
+        },
+
+        {
+          type: "text",
+          question: "What type of builds are you best at?"
+        },
+
+        {
+          type: "text",
+          question: "Why should we choose you?"
+        }
       ]
     }
   }
