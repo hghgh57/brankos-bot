@@ -3,14 +3,10 @@ module.exports = {
   // CHANNEL IDS
   // ==================================================
 
-  welcomeChannelId: "1438877108452593765",
-
-  leaveChannelId: "1438877108452593765",
-
-  applicationChannelId: "1492509675520790598",
-
-  transcriptChannelId: "1499507598691536896",
-
+  welcomeChannelId: "PUT_WELCOME_CHANNEL_ID_HERE",
+  leaveChannelId: "PUT_LEAVE_CHANNEL_ID_HERE",
+  applicationChannelId: "PUT_APPLICATION_CHANNEL_ID_HERE",
+  transcriptChannelId: "PUT_TRANSCRIPT_CHANNEL_ID_HERE",
 
   // ==================================================
   // PAID ADVERTISEMENT
@@ -45,7 +41,6 @@ module.exports = {
 - **Channel for 7 days: \`5€\`** 
 > -# for custom amount of days it is \`1€\` per day 
  
- 
 ## **<:Cash:1538963818951217312>  •  __Payment Methods __** 
  
 > - **PayPal <:Paypal:1531290414009684129>   ** 
@@ -59,17 +54,13 @@ module.exports = {
 > - **Payment** goes through <@1253357195479748678>  **__ONLY__**`
   },
 
-
   // ==================================================
   // TICKETS
   // ==================================================
 
   tickets: {
 
-    // ==================================================
-    // TICKET PANEL
-    // ==================================================
-
+    // Ticket panel
     panel: {
       title: "8B | Branko's community",
 
@@ -80,55 +71,54 @@ module.exports = {
         "Brankos community support"
     },
 
-
     // ==================================================
-    // SUPPORT TICKET
+    // SUPPORT
     // ==================================================
 
     support: {
       name: "support",
       label: "Support",
-      color: 0xFF0000,
-      categoryId: "1510706105490342131"
+      color: 0x0000FF,
+      categoryId: "1510706105490342131",
+      roleId: "1484216939466461376"
     },
 
-
     // ==================================================
-    // PARTNER TICKET
+    // PARTNER
     // ==================================================
 
     partner: {
       name: "partner",
       label: "Partner",
-      color: 0x00FF00,
-      categoryId: "1510706100998111473"
+      color: 0x0000FF,
+      categoryId: "1510706100998111473",
+      roleId: "1484216939466461376"
     },
 
-
     // ==================================================
-    // BUY/SELL SPAWNERS TICKET
+    // BUY/SELL SPAWNERS
     // ==================================================
 
     spawners: {
       name: "buy-sell-spawners",
       label: "Buy/Sell Spawners",
-      color: 0x00FF00,
-      categoryId: "1510706100998111473"
+      color: 0x0000FF,
+      categoryId: "1510706100998111473",
+      roleId: "1484216939466461376"
     },
 
-
     // ==================================================
-    // SPONSOR TICKET
+    // SPONSOR
     // ==================================================
 
     sponsor: {
       name: "sponsor",
       label: "Sponsor",
-      emoji: "",
-      categoryId: "1526976384826736641"
+      color: 0x0000FF,
+      categoryId: "1526976384826736641",
+      roleId: "1484216939466461376"
     }
   },
-
 
   // ==================================================
   // APPLICATIONS
@@ -137,7 +127,7 @@ module.exports = {
   applications: {
 
     // ==================================================
-    // STAFF APPLICATION
+    // STAFF
     // ==================================================
 
     staff: {
@@ -145,7 +135,6 @@ module.exports = {
       emoji: "🛡️",
 
       questions: [
-
         {
           type: "text",
           question: "What is your Discord username and ID?"
@@ -183,9 +172,8 @@ module.exports = {
       ]
     },
 
-
     // ==================================================
-    // PARTNER MANAGER APPLICATION
+    // PARTNER MANAGER
     // ==================================================
 
     partner: {
@@ -193,7 +181,6 @@ module.exports = {
       emoji: "🤝",
 
       questions: [
-
         {
           type: "text",
           question: "What is your Discord username and ID?"
@@ -231,9 +218,8 @@ module.exports = {
       ]
     },
 
-
     // ==================================================
-    // BUILDER APPLICATION
+    // BUILDER
     // ==================================================
 
     builder: {
@@ -241,7 +227,6 @@ module.exports = {
       emoji: "🏗️",
 
       questions: [
-
         {
           type: "text",
           question: "What is your Discord username and ID?"
