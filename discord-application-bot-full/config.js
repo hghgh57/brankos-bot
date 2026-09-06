@@ -60,20 +60,52 @@ paidAd: {
   // ==============================
 
   applications: {
-    staff: {
-      name: "Staff Application",
-      emoji: "🛡️",
+ staff: {
+  name: "Staff Application",
+  emoji: "🛡️",
 
-      questions: [
-        "What is your Discord username and ID?",
-        "How old are you?",
-        "Why do you want to become staff?",
-        "What previous staff experience do you have?",
-        "How active are you each week?",
-        "How would you handle a member breaking the rules?",
-        "Why should we choose you over other applicants?"
-      ]
+  questions: [
+    {
+      type: "text",
+      question: "What is your Discord username and ID?"
     },
+
+    {
+      type: "yesno",
+      question: "Do you have previous experience as a staff member?"
+    },
+
+    {
+      type: "text",
+      question: "If yes, list the servers where you have been staff."
+    },
+
+    {
+      type: "text",
+      question: "Why do you want to join our Staff Team?"
+    },
+
+    {
+      type: "yesno",
+      question: "Are you able to be active every day on our server?"
+    },
+
+    {
+      type: "text",
+      question: "How long can you be active during the day in our server?"
+    },
+
+    {
+      type: "text",
+      question: "How would you handle someone breaking the rules?"
+    },
+
+    {
+      type: "text",
+      question: "Why should we choose you over other applicants?"
+    }
+  ]
+},
 
     partner: {
       name: "Partner Manager Application",
