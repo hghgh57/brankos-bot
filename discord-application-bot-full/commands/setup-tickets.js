@@ -15,7 +15,9 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("setup-tickets")
     .setDescription("Send the ticket panel.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.ManageGuild
+    ),
 
   async execute(interaction) {
     const panel = config.tickets.panel;
@@ -24,11 +26,12 @@ module.exports = {
       .setColor(BLUE)
       .setTitle(panel.title)
       .setDescription(panel.description)
-      .setFooter({ text: "Brankos community support" })
+      .setFooter({
+        text: "Brankos community support"
+      })
       .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
-
       new ButtonBuilder()
         .setCustomId("ticket_support")
         .setLabel(config.tickets.support.label)
@@ -48,7 +51,6 @@ module.exports = {
         .setCustomId("ticket_sponsor")
         .setLabel(config.tickets.sponsor.label)
         .setStyle(ButtonStyle.Primary)
-
     );
 
     await interaction.channel.send({
