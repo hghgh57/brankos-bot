@@ -17,7 +17,7 @@ module.exports = {
   // ==============================
 
  paidAd: {
-  title: "💰 PAID ADVERTISEMENTS",
+  title: "",
   message: `#  ** :coins:   __PAID ADVERTISMENTS__    **  
  
  
