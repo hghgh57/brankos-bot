@@ -15,13 +15,12 @@ module.exports = {
   // ==============================
   // PAID AD
   // ==============================
-
- paidAd: {
-  title: "",
-  message: `#  ** :coins:   __PAID ADVERTISMENTS__    **  
+paidAd: {
+  title: "💰 PAID ADVERTISEMENTS",
+  message: `#  ** <a:coins:1538972519950848080>   __PAID ADVERTISMENTS__    **  
  
  
-## :Pings:  •  Ping Options: 
+## <a:Pings:1538972837056876625>  •  Ping Options: 
  
 ### Weekday Prices : 
 - ** @here = \`1,00€\`** 
@@ -32,31 +31,30 @@ module.exports = {
 - ** <@&1438912689186406411>   = \`3,50€\` (everyone except famous people) ** 
 - ** @everyone =  \`4,00€\` (pings famous people like <@884056543576866886> , <@988883385332170872> , <@944232264856928256> , <@1389443504673128448> ) ** 
  
-## :giftbox:  •  Addons (Recommended)  
-- ** :6635paymentnitroclassic: Nitro Basic: \`4€\`** 
-- ** :126620nitro: Nitro Premium \`11€\`** 
+## <a:giftbox:1538973596817297438>  •  Addons (Recommended)  
+- ** <a:6635paymentnitroclassic:1510636974657114112> Nitro Basic: \`4€\`** 
+- ** <a:126620nitro:1510636789029933057> Nitro Premium \`11€\`** 
 > -# More members will join for a chance to win Nitro 
  
-## :hashtag:  •  Custom Channel  
+## <:hashtag:1525836705809043537>  •  Custom Channel  
 - **Channel for 1 day: \`1€\`** 
 - **Channel for 3 days: \`2,5€\`** 
 - **Channel for 7 days: \`5€\`** 
 > -# for custom amount of days it is \`1€\` per day 
  
  
-## **:Cash:  •  __Payment Methods __** 
+## **<:Cash:1538963818951217312>  •  __Payment Methods __** 
  
-> - **PayPal :Paypal:   ** 
-> - **Crypto :Crypto:    ** 
+> - **PayPal <:Paypal:1531290414009684129>   ** 
+> - **Crypto <:Crypto:1525835017836826665>    ** 
 ** All Fees must be covered by you** 
  
-> #  :Rules: Rules : 
+> #  <:Rules:1538176205063192606> Rules : 
 > - **No Refunds** 
 > - If your server breaks **Donut Rules or Discord Terms of Service** , your ad will be removed (or won't be posted). 
 > - Once your ad is approved and posted, you cannot change the **text, ping, or the ad without prior approval.** 
 > - **Payment** goes through <@1253357195479748678>  **__ONLY__**`
 },
-
   // ==============================
   // APPLICATIONS
   // ==============================
