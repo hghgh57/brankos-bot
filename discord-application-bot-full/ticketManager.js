@@ -27,7 +27,7 @@ async function createTicket(interaction, type) {
   const guild = interaction.guild;
   const user = interaction.user;
 
-  // Check if user already has a ticket
+  // Check if the user already has a ticket
   const existingTicket = guild.channels.cache.find(
     channel =>
       channel.type === ChannelType.GuildText &&
@@ -46,46 +46,67 @@ async function createTicket(interaction, type) {
   });
 
   try {
+    const roleId = ticketConfig.roleId;
+
+    const channelName =
+      `${ticketConfig.name}-${user.username}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-")
+        .substring(0, 90);
+
+    const permissionOverwrites = [
+      {
+        id: guild.roles.everyone.id,
+        deny: [
+          PermissionFlagsBits.ViewChannel
+        ]
+      },
+
+      // Ticket owner
+      {
+        id: user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.AttachFiles,
+          PermissionFlagsBits.EmbedLinks
+        ]
+      },
+
+      // Ticket staff role
+      {
+        id: roleId,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.AttachFiles,
+          PermissionFlagsBits.EmbedLinks
+        ]
+      },
+
+      // Bot
+      {
+        id: interaction.client.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.ManageChannels,
+          PermissionFlagsBits.ManageMessages,
+          PermissionFlagsBits.AttachFiles,
+          PermissionFlagsBits.EmbedLinks
+        ]
+      }
+    ];
+
     const channel = await guild.channels.create({
-      name: `${ticketConfig.name}-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+      name: channelName,
       type: ChannelType.GuildText,
-
       parent: ticketConfig.categoryId,
-
       topic: `ticket-owner:${user.id}`,
-
-      permissionOverwrites: [
-        {
-          id: guild.roles.everyone.id,
-          deny: [
-            PermissionFlagsBits.ViewChannel
-          ]
-        },
-
-        {
-          id: user.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-            PermissionFlagsBits.AttachFiles,
-            PermissionFlagsBits.EmbedLinks
-          ]
-        },
-
-        {
-          id: interaction.client.user.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-            PermissionFlagsBits.ManageChannels,
-            PermissionFlagsBits.ManageMessages,
-            PermissionFlagsBits.AttachFiles,
-            PermissionFlagsBits.EmbedLinks
-          ]
-        }
-      ]
+      permissionOverwrites
     });
 
     activeTickets.set(channel.id, {
@@ -94,30 +115,38 @@ async function createTicket(interaction, type) {
       type
     });
 
+    // ==============================================
+    // TICKET EMBED
+    // ==============================================
+
     const ticketEmbed = new EmbedBuilder()
-      .setColor(ticketConfig.color)
-      .setTitle(`${ticketConfig.emoji} ${ticketConfig.label} Ticket`)
+      .setColor(BLUE)
+      .setTitle(`${ticketConfig.label} — ${user.username}`)
       .setDescription(
-        `Welcome ${user}!\n\n` +
-        `Thank you for opening a **${ticketConfig.label}** ticket.\n\n` +
-        `Please explain what you need help with and a staff member will assist you.\n\n` +
-        `🔒 **When you are finished, use the Close button below.**`
+        `Hey ${user}, thanks for opening a ticket! Our support team will be with you shortly. Please provide a brief description of your issue.`
       )
       .setFooter({
-        text: "Ticket System"
+        text: "Brankos community support"
       })
       .setTimestamp();
+
+    // ==============================================
+    // CLOSE BUTTON
+    // ==============================================
 
     const closeButton = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("ticket_close")
         .setLabel("Close Ticket")
-        .setEmoji("🔒")
         .setStyle(ButtonStyle.Danger)
     );
 
+    // ==============================================
+    // SEND TICKET
+    // ==============================================
+
     await channel.send({
-      content: `${user}`,
+      content: `<@&${roleId}> ${user}`,
       embeds: [ticketEmbed],
       components: [closeButton]
     });
@@ -130,10 +159,16 @@ async function createTicket(interaction, type) {
     console.error("Ticket creation error:", error);
 
     await interaction.editReply({
-      content: "❌ I could not create the ticket. Make sure I have Manage Channels permission."
+      content:
+        "❌ I could not create the ticket. Make sure I have Manage Channels permission and that the category/role IDs are correct."
     });
   }
 }
+
+
+// ==================================================
+// CLOSE TICKET
+// ==================================================
 
 async function closeTicket(interaction) {
   const channel = interaction.channel;
@@ -145,17 +180,36 @@ async function closeTicket(interaction) {
     });
   }
 
-  if (!channel.topic || !channel.topic.startsWith("ticket-owner:")) {
+  if (
+    !channel.topic ||
+    !channel.topic.startsWith("ticket-owner:")
+  ) {
     return interaction.reply({
       content: "❌ This is not a ticket channel.",
       ephemeral: true
     });
   }
 
-  // Only allow staff / people with Manage Channels to close
+  const ownerId = channel.topic.replace(
+    "ticket-owner:",
+    ""
+  );
+
+  // Get ticket config
+  const ticketData = activeTickets.get(channel.id);
+
+  let ticketConfig = null;
+
+  if (ticketData && config.tickets[ticketData.type]) {
+    ticketConfig = config.tickets[ticketData.type];
+  }
+
+  // Allow the ticket owner or staff with Manage Channels to close
   if (
-    !interaction.member.permissions.has(PermissionFlagsBits.ManageChannels) &&
-    interaction.user.id !== channel.topic.replace("ticket-owner:", "")
+    !interaction.member.permissions.has(
+      PermissionFlagsBits.ManageChannels
+    ) &&
+    interaction.user.id !== ownerId
   ) {
     return interaction.reply({
       content: "❌ You do not have permission to close this ticket.",
@@ -166,17 +220,18 @@ async function closeTicket(interaction) {
   await interaction.deferReply();
 
   try {
-    const ownerId = channel.topic.replace("ticket-owner:", "");
-
-    const ticketData = activeTickets.get(channel.id);
-
     let openedAt = ticketData?.openedAt;
 
     if (!openedAt) {
-      openedAt = new Date();
+      openedAt = channel.createdAt || new Date();
     }
 
-    // Fetch ALL messages
+    const closedAt = new Date();
+
+    // ==============================================
+    // GET ALL MESSAGES
+    // ==============================================
+
     let messages = [];
     let lastId;
 
@@ -186,18 +241,25 @@ async function closeTicket(interaction) {
         ...(lastId ? { before: lastId } : {})
       });
 
-      if (fetched.size === 0) break;
+      if (fetched.size === 0) {
+        break;
+      }
 
       messages.push(...fetched.values());
 
       lastId = fetched.last().id;
 
-      if (fetched.size < 100) break;
+      if (fetched.size < 100) {
+        break;
+      }
     }
 
     messages.reverse();
 
-    // Create transcript
+    // ==============================================
+    // CREATE TRANSCRIPT
+    // ==============================================
+
     let transcript = "";
 
     transcript += "========================================\n";
@@ -205,18 +267,23 @@ async function closeTicket(interaction) {
     transcript += "========================================\n\n";
 
     transcript += `Ticket: #${channel.name}\n`;
+    transcript += `Type: ${ticketConfig?.label || "Unknown"}\n`;
     transcript += `Opened By: ${ownerId}\n`;
     transcript += `Closed By: ${interaction.user.tag} (${interaction.user.id})\n`;
     transcript += `Opened At: ${openedAt.toISOString()}\n`;
-    transcript += `Closed At: ${new Date().toISOString()}\n\n`;
+    transcript += `Closed At: ${closedAt.toISOString()}\n\n`;
 
     transcript += "========================================\n";
     transcript += "                 MESSAGES\n";
     transcript += "========================================\n\n";
 
     for (const message of messages) {
-      transcript += `[${message.createdAt.toISOString()}] ${message.author.tag} (${message.author.id})\n`;
-      transcript += `${message.content || "[Embed/Attachment/No text]"}\n`;
+      transcript +=
+        `[${message.createdAt.toISOString()}] ` +
+        `${message.author.tag} (${message.author.id})\n`;
+
+      transcript +=
+        `${message.content || "[Embed/Attachment/No text]"}\n`;
 
       if (message.attachments.size > 0) {
         for (const attachment of message.attachments.values()) {
@@ -227,7 +294,10 @@ async function closeTicket(interaction) {
       transcript += "\n";
     }
 
-    const transcriptBuffer = Buffer.from(transcript, "utf8");
+    const transcriptBuffer = Buffer.from(
+      transcript,
+      "utf8"
+    );
 
     const transcriptFile = new AttachmentBuilder(
       transcriptBuffer,
@@ -236,12 +306,19 @@ async function closeTicket(interaction) {
       }
     );
 
-    // Find transcript channel
-    const transcriptChannel = await interaction.client.channels
-      .fetch(config.transcriptChannelId)
-      .catch(() => null);
+    // ==============================================
+    // FIND TRANSCRIPT CHANNEL
+    // ==============================================
 
-    if (!transcriptChannel || !transcriptChannel.isTextBased()) {
+    const transcriptChannel =
+      await interaction.client.channels
+        .fetch(config.transcriptChannelId)
+        .catch(() => null);
+
+    if (
+      !transcriptChannel ||
+      !transcriptChannel.isTextBased()
+    ) {
       await interaction.editReply({
         content:
           "❌ I couldn't find the transcript channel. Please set `transcriptChannelId` in config.js."
@@ -250,12 +327,15 @@ async function closeTicket(interaction) {
       return;
     }
 
-    // Blue transcript embed
+    // ==============================================
+    // TRANSCRIPT EMBED
+    // ==============================================
+
     const transcriptEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle("📄 Ticket Transcript")
       .setDescription(
-        `A ticket has been closed and its transcript has been saved.`
+        "A ticket has been closed and its transcript has been saved."
       )
       .addFields(
         {
@@ -275,19 +355,27 @@ async function closeTicket(interaction) {
         },
         {
           name: "🕐 Opened At",
-          value: `<t:${Math.floor(openedAt.getTime() / 1000)}:F>`,
+          value: `<t:${Math.floor(
+            openedAt.getTime() / 1000
+          )}:F>`,
           inline: false
         },
         {
           name: "🕐 Closed At",
-          value: `<t:${Math.floor(Date.now() / 1000)}:F>`,
+          value: `<t:${Math.floor(
+            closedAt.getTime() / 1000
+          )}:F>`,
           inline: false
         }
       )
       .setFooter({
-        text: "Ticket System"
+        text: "Brankos community support"
       })
       .setTimestamp();
+
+    // ==============================================
+    // SEND TRANSCRIPT
+    // ==============================================
 
     await transcriptChannel.send({
       embeds: [transcriptEmbed],
@@ -300,17 +388,23 @@ async function closeTicket(interaction) {
 
     activeTickets.delete(channel.id);
 
-    // Delete ticket after transcript is safely sent
+    // Delete ticket after 3 seconds
     setTimeout(async () => {
-      await channel.delete("Ticket closed").catch(console.error);
+      await channel
+        .delete("Ticket closed")
+        .catch(console.error);
     }, 3000);
 
   } catch (error) {
-    console.error("Ticket closing error:", error);
+    console.error(
+      "Ticket closing error:",
+      error
+    );
 
     if (interaction.deferred) {
       await interaction.editReply({
-        content: "❌ Something went wrong while closing the ticket."
+        content:
+          "❌ Something went wrong while closing the ticket."
       }).catch(() => {});
     }
   }
