@@ -88,7 +88,7 @@ module.exports = {
     support: {
       name: "support",
       label: "Support",
-      emoji: "🔴",
+      emoji: "",
       color: 0xFF0000,
       categoryId: "1510706105490342131"
     },
@@ -101,7 +101,7 @@ module.exports = {
     partner: {
       name: "partner",
       label: "Partner",
-      emoji: "🟢",
+      emoji: "",
       color: 0x00FF00,
       categoryId: "1510706100998111473"
     },
@@ -114,7 +114,7 @@ module.exports = {
     spawners: {
       name: "buy-sell-spawners",
       label: "Buy/Sell Spawners",
-      emoji: "🟢",
+      emoji: "",
       color: 0x00FF00,
       categoryId: "1510706100998111473"
     },
@@ -127,7 +127,7 @@ module.exports = {
     sponsor: {
       name: "sponsor",
       label: "Sponsor",
-      emoji: "🔵",
+      emoji: "",
       color: 0x0000FF,
       categoryId: "1526976384826736641"
     }
