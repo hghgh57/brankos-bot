@@ -18,7 +18,6 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction) {
-
     const panel = config.tickets.panel;
 
     const embed = new EmbedBuilder()
@@ -28,37 +27,33 @@ module.exports = {
       .setFooter({ text: "Brankos community support" })
       .setTimestamp();
 
-    const row1 = new ActionRowBuilder().addComponents(
+    const row = new ActionRowBuilder().addComponents(
 
       new ButtonBuilder()
         .setCustomId("ticket_support")
         .setLabel(config.tickets.support.label)
-        .setEmoji(config.tickets.support.emoji)
         .setStyle(ButtonStyle.Danger),
 
       new ButtonBuilder()
         .setCustomId("ticket_partner")
         .setLabel(config.tickets.partner.label)
-        .setEmoji(config.tickets.partner.emoji)
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId("ticket_spawners")
         .setLabel(config.tickets.spawners.label)
-        .setEmoji(config.tickets.spawners.emoji)
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId("ticket_sponsor")
         .setLabel(config.tickets.sponsor.label)
-        .setEmoji(config.tickets.sponsor.emoji)
         .setStyle(ButtonStyle.Primary)
 
     );
 
     await interaction.channel.send({
       embeds: [embed],
-      components: [row1]
+      components: [row]
     });
 
     await interaction.reply({
