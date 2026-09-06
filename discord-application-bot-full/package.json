@@ -1,0 +1,13 @@
+{
+  "name": "discord-application-bot",
+  "version": "1.0.0",
+  "description": "Discord welcome/leave, DM applications and embed bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.22.1",
+    "dotenv": "^17.2.2"
+  }
+}
