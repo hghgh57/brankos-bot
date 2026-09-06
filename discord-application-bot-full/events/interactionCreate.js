@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require("discord.js");
 const config = require("../config");
 
-const BLUE = 0x5865F2;
+const BLUE = 0x0000ff;
 
 const activeApplications = new Set();
 
@@ -21,7 +21,8 @@ async function startApplication(interaction, type) {
 
   if (activeApplications.has(interaction.user.id)) {
     return interaction.reply({
-      content: "You already have an application running. Finish it or type `cancel` in your DMs.",
+      content:
+        "You already have an application running. Finish it or type `cancel` in your DMs.",
       ephemeral: true
     });
   }
@@ -36,6 +37,7 @@ async function startApplication(interaction, type) {
   try {
     const dm = await interaction.user.createDM();
 
+    // APPLICATION START EMBED
     const startEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle(`${application.emoji} ${application.name}`)
@@ -55,15 +57,15 @@ async function startApplication(interaction, type) {
 
     const answers = [];
 
+    // QUESTIONS
     for (let i = 0; i < application.questions.length; i++) {
       const questionEmbed = new EmbedBuilder()
         .setColor(BLUE)
         .setTitle(`${application.emoji} ${application.name}`)
         .setDescription(
           `**Question ${i + 1}/${application.questions.length}**\n\n` +
-          application.questions[i] +
-          "\n\n" +
-          "💬 Type your answer below.\n" +
+          `${application.questions[i]}\n\n` +
+          "💬 **Type your answer below.**\n" +
           "❌ Type `cancel` to cancel."
         )
         .setFooter({
@@ -75,7 +77,7 @@ async function startApplication(interaction, type) {
       });
 
       const collected = await dm.awaitMessages({
-        filter: msg => msg.author.id === interaction.user.id,
+        filter: message => message.author.id === interaction.user.id,
         max: 1,
         time: 10 * 60 * 1000,
         errors: ["time"]
@@ -83,6 +85,7 @@ async function startApplication(interaction, type) {
 
       const answer = collected.first().content.trim();
 
+      // CANCEL
       if (answer.toLowerCase() === "cancel") {
         const cancelEmbed = new EmbedBuilder()
           .setColor(BLUE)
@@ -103,6 +106,7 @@ async function startApplication(interaction, type) {
 
       answers.push(answer);
 
+      // ANSWER RECEIVED
       if (i < application.questions.length - 1) {
         const receivedEmbed = new EmbedBuilder()
           .setColor(BLUE)
@@ -117,6 +121,7 @@ async function startApplication(interaction, type) {
       }
     }
 
+    // GET APPLICATION CHANNEL
     const resultChannel = await interaction.client.channels
       .fetch(config.applicationChannelId)
       .catch(() => null);
@@ -126,7 +131,7 @@ async function startApplication(interaction, type) {
         .setColor(BLUE)
         .setTitle("❌ Application Error")
         .setDescription(
-          "Your application was completed, but the application review channel has not been configured correctly.\n\n" +
+          "Your application was completed, but the application review channel is not configured correctly.\n\n" +
           "Please contact a staff member."
         )
         .setTimestamp();
@@ -139,6 +144,7 @@ async function startApplication(interaction, type) {
       return;
     }
 
+    // APPLICATION SENT TO STAFF
     const resultEmbed = new EmbedBuilder()
       .setTitle(`${application.emoji} ${application.name}`)
       .setColor(BLUE)
@@ -163,12 +169,14 @@ async function startApplication(interaction, type) {
       embeds: [resultEmbed]
     });
 
+    // SUBMITTED MESSAGE
     const submittedEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle("✅ Application Submitted")
       .setDescription(
         `Your **${application.name}** has been successfully submitted!\n\n` +
-        "The staff team will review your application. Thank you for applying! ❤️"
+        "The staff team will review your application.\n\n" +
+        "Thank you for applying! ❤️"
       )
       .setTimestamp();
 
@@ -180,7 +188,7 @@ async function startApplication(interaction, type) {
     console.error("Application error:", error);
 
     try {
-      const timeoutEmbed = new EmbedBuilder()
+      const errorEmbed = new EmbedBuilder()
         .setColor(BLUE)
         .setTitle("❌ Application Ended")
         .setDescription(
@@ -190,7 +198,7 @@ async function startApplication(interaction, type) {
         .setTimestamp();
 
       await interaction.user.send({
-        embeds: [timeoutEmbed]
+        embeds: [errorEmbed]
       });
     } catch {}
 
@@ -203,6 +211,8 @@ module.exports = {
   name: "interactionCreate",
 
   async execute(interaction) {
+
+    // SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
       const command = interaction.client.commands.get(
         interaction.commandName
@@ -231,11 +241,15 @@ module.exports = {
       return;
     }
 
+    // APPLICATION BUTTONS
     if (
       interaction.isButton() &&
       interaction.customId.startsWith("application_")
     ) {
-      const type = interaction.customId.replace("application_", "");
+      const type = interaction.customId.replace(
+        "application_",
+        ""
+      );
 
       return startApplication(interaction, type);
     }
