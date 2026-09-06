@@ -2,7 +2,6 @@ const { EmbedBuilder } = require("discord.js");
 const config = require("../config");
 
 const BLUE = 0x0000ff;
-
 const activeApplications = new Set();
 
 function cleanAnswer(text) {
@@ -21,8 +20,7 @@ async function startApplication(interaction, type) {
 
   if (activeApplications.has(interaction.user.id)) {
     return interaction.reply({
-      content:
-        "You already have an application running. Finish it or type `cancel` in your DMs.",
+      content: "You already have an application running. Type `cancel` in your DMs to cancel it.",
       ephemeral: true
     });
   }
@@ -37,13 +35,13 @@ async function startApplication(interaction, type) {
   try {
     const dm = await interaction.user.createDM();
 
-    // APPLICATION START EMBED
+    // START APPLICATION
     const startEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle(`${application.emoji} ${application.name}`)
       .setDescription(
         "Thank you for applying!\n\n" +
-        "You will be asked a few questions. Please answer each question one at a time.\n\n" +
+        "You will be asked a few questions. Answer each question one at a time.\n\n" +
         "❌ **Type `cancel` at any time to cancel your application.**"
       )
       .setFooter({
@@ -70,7 +68,8 @@ async function startApplication(interaction, type) {
         )
         .setFooter({
           text: `Question ${i + 1} of ${application.questions.length}`
-        });
+        })
+        .setTimestamp();
 
       await dm.send({
         embeds: [questionEmbed]
@@ -100,7 +99,6 @@ async function startApplication(interaction, type) {
           embeds: [cancelEmbed]
         });
 
-        activeApplications.delete(interaction.user.id);
         return;
       }
 
@@ -121,7 +119,7 @@ async function startApplication(interaction, type) {
       }
     }
 
-    // GET APPLICATION CHANNEL
+    // APPLICATION CHANNEL
     const resultChannel = await interaction.client.channels
       .fetch(config.applicationChannelId)
       .catch(() => null);
@@ -140,14 +138,13 @@ async function startApplication(interaction, type) {
         embeds: [errorEmbed]
       });
 
-      activeApplications.delete(interaction.user.id);
       return;
     }
 
     // APPLICATION SENT TO STAFF
     const resultEmbed = new EmbedBuilder()
-      .setTitle(`${application.emoji} ${application.name}`)
       .setColor(BLUE)
+      .setTitle(`${application.emoji} ${application.name}`)
       .setAuthor({
         name: interaction.user.tag,
         iconURL: interaction.user.displayAvatarURL()
@@ -169,7 +166,7 @@ async function startApplication(interaction, type) {
       embeds: [resultEmbed]
     });
 
-    // SUBMITTED MESSAGE
+    // SUBMITTED
     const submittedEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle("✅ Application Submitted")
