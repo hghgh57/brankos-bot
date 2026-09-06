@@ -19,50 +19,41 @@ module.exports = {
 
   async execute(interaction) {
 
+    const panel = config.tickets.panel;
+
     const embed = new EmbedBuilder()
       .setColor(BLUE)
-      .setTitle("🎫 Ticket Support")
-      .setDescription(
-        "Need help? Open a ticket using one of the buttons below.\n\n" +
-        "🔴 **Support**\n" +
-        "For general support and help.\n\n" +
-        "🟢 **Partner**\n" +
-        "For partnership related requests.\n\n" +
-        "🟢 **Buy/Sell Spawners**\n" +
-        "For buying or selling spawners.\n\n" +
-        "🔵 **Sponsor**\n" +
-        "For sponsorship related requests.\n\n" +
-        "Please only open a ticket if you need assistance."
-      )
-      .setFooter({
-        text: "Ticket System"
-      })
+      .setTitle(panel.title)
+      .setDescription(panel.description)
+      .setFooter({ text: "Brankos community support" })
       .setTimestamp();
 
     const row1 = new ActionRowBuilder().addComponents(
+
       new ButtonBuilder()
         .setCustomId("ticket_support")
-        .setLabel("Support")
-        .setEmoji("🔴")
+        .setLabel(config.tickets.support.label)
+        .setEmoji(config.tickets.support.emoji)
         .setStyle(ButtonStyle.Danger),
 
       new ButtonBuilder()
         .setCustomId("ticket_partner")
-        .setLabel("Partner")
-        .setEmoji("🟢")
+        .setLabel(config.tickets.partner.label)
+        .setEmoji(config.tickets.partner.emoji)
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId("ticket_spawners")
-        .setLabel("Buy/Sell Spawners")
-        .setEmoji("🟢")
+        .setLabel(config.tickets.spawners.label)
+        .setEmoji(config.tickets.spawners.emoji)
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId("ticket_sponsor")
-        .setLabel("Sponsor")
-        .setEmoji("🔵")
+        .setLabel(config.tickets.sponsor.label)
+        .setEmoji(config.tickets.sponsor.emoji)
         .setStyle(ButtonStyle.Primary)
+
     );
 
     await interaction.channel.send({
