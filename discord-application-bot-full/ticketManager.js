@@ -27,7 +27,6 @@ async function createTicket(interaction, type) {
   const guild = interaction.guild;
   const user = interaction.user;
 
-  // Check if the user already has a ticket
   const existingTicket = guild.channels.cache.find(
     channel =>
       channel.type === ChannelType.GuildText &&
@@ -41,9 +40,7 @@ async function createTicket(interaction, type) {
     });
   }
 
-  await interaction.deferReply({
-    ephemeral: true
-  });
+  await interaction.deferReply({ ephemeral: true });
 
   try {
     const roleId = ticketConfig.roleId;
@@ -57,12 +54,8 @@ async function createTicket(interaction, type) {
     const permissionOverwrites = [
       {
         id: guild.roles.everyone.id,
-        deny: [
-          PermissionFlagsBits.ViewChannel
-        ]
+        deny: [PermissionFlagsBits.ViewChannel]
       },
-
-      // Ticket owner
       {
         id: user.id,
         allow: [
@@ -73,8 +66,6 @@ async function createTicket(interaction, type) {
           PermissionFlagsBits.EmbedLinks
         ]
       },
-
-      // Ticket staff role
       {
         id: roleId,
         allow: [
@@ -85,8 +76,6 @@ async function createTicket(interaction, type) {
           PermissionFlagsBits.EmbedLinks
         ]
       },
-
-      // Bot
       {
         id: interaction.client.user.id,
         allow: [
@@ -115,10 +104,6 @@ async function createTicket(interaction, type) {
       type
     });
 
-    // ==============================================
-    // TICKET EMBED
-    // ==============================================
-
     const ticketEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle(`${ticketConfig.label} — ${user.username}`)
@@ -130,20 +115,12 @@ async function createTicket(interaction, type) {
       })
       .setTimestamp();
 
-    // ==============================================
-    // CLOSE BUTTON
-    // ==============================================
-
     const closeButton = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("ticket_close")
         .setLabel("Close Ticket")
         .setStyle(ButtonStyle.Danger)
     );
-
-    // ==============================================
-    // SEND TICKET
-    // ==============================================
 
     await channel.send({
       content: `<@&${roleId}> ${user}`,
@@ -154,7 +131,6 @@ async function createTicket(interaction, type) {
     await interaction.editReply({
       content: `✅ Your ticket has been created: ${channel}`
     });
-
   } catch (error) {
     console.error("Ticket creation error:", error);
 
@@ -164,11 +140,6 @@ async function createTicket(interaction, type) {
     });
   }
 }
-
-
-// ==================================================
-// CLOSE TICKET
-// ==================================================
 
 async function closeTicket(interaction) {
   const channel = interaction.channel;
@@ -180,22 +151,14 @@ async function closeTicket(interaction) {
     });
   }
 
-  if (
-    !channel.topic ||
-    !channel.topic.startsWith("ticket-owner:")
-  ) {
+  if (!channel.topic || !channel.topic.startsWith("ticket-owner:")) {
     return interaction.reply({
       content: "❌ This is not a ticket channel.",
       ephemeral: true
     });
   }
 
-  const ownerId = channel.topic.replace(
-    "ticket-owner:",
-    ""
-  );
-
-  // Get ticket config
+  const ownerId = channel.topic.replace("ticket-owner:", "");
   const ticketData = activeTickets.get(channel.id);
 
   let ticketConfig = null;
@@ -204,7 +167,6 @@ async function closeTicket(interaction) {
     ticketConfig = config.tickets[ticketData.type];
   }
 
-  // Allow the ticket owner or staff with Manage Channels to close
   if (
     !interaction.member.permissions.has(
       PermissionFlagsBits.ManageChannels
@@ -228,11 +190,7 @@ async function closeTicket(interaction) {
 
     const closedAt = new Date();
 
-    // ==============================================
-    // GET ALL MESSAGES
-    // ==============================================
-
-    let messages = [];
+    const messages = [];
     let lastId;
 
     while (true) {
@@ -241,24 +199,16 @@ async function closeTicket(interaction) {
         ...(lastId ? { before: lastId } : {})
       });
 
-      if (fetched.size === 0) {
-        break;
-      }
+      if (fetched.size === 0) break;
 
       messages.push(...fetched.values());
 
       lastId = fetched.last().id;
 
-      if (fetched.size < 100) {
-        break;
-      }
+      if (fetched.size < 100) break;
     }
 
     messages.reverse();
-
-    // ==============================================
-    // CREATE TRANSCRIPT
-    // ==============================================
 
     let transcript = "";
 
@@ -278,12 +228,8 @@ async function closeTicket(interaction) {
     transcript += "========================================\n\n";
 
     for (const message of messages) {
-      transcript +=
-        `[${message.createdAt.toISOString()}] ` +
-        `${message.author.tag} (${message.author.id})\n`;
-
-      transcript +=
-        `${message.content || "[Embed/Attachment/No text]"}\n`;
+      transcript += `[${message.createdAt.toISOString()}] ${message.author.tag} (${message.author.id})\n`;
+      transcript += `${message.content || "[Embed/Attachment/No text]"}\n`;
 
       if (message.attachments.size > 0) {
         for (const attachment of message.attachments.values()) {
@@ -294,10 +240,7 @@ async function closeTicket(interaction) {
       transcript += "\n";
     }
 
-    const transcriptBuffer = Buffer.from(
-      transcript,
-      "utf8"
-    );
+    const transcriptBuffer = Buffer.from(transcript, "utf8");
 
     const transcriptFile = new AttachmentBuilder(
       transcriptBuffer,
@@ -306,30 +249,18 @@ async function closeTicket(interaction) {
       }
     );
 
-    // ==============================================
-    // FIND TRANSCRIPT CHANNEL
-    // ==============================================
+    const transcriptChannel = await interaction.client.channels
+      .fetch(config.transcriptChannelId)
+      .catch(() => null);
 
-    const transcriptChannel =
-      await interaction.client.channels
-        .fetch(config.transcriptChannelId)
-        .catch(() => null);
-
-    if (
-      !transcriptChannel ||
-      !transcriptChannel.isTextBased()
-    ) {
+    if (!transcriptChannel || !transcriptChannel.isTextBased()) {
       await interaction.editReply({
         content:
-          "❌ I couldn't find the transcript channel. Please set `transcriptChannelId` in config.js."
+          "❌ I couldn't find the transcript channel. Please set transcriptChannelId in config.js."
       });
 
       return;
     }
-
-    // ==============================================
-    // TRANSCRIPT EMBED
-    // ==============================================
 
     const transcriptEmbed = new EmbedBuilder()
       .setColor(BLUE)
@@ -373,10 +304,6 @@ async function closeTicket(interaction) {
       })
       .setTimestamp();
 
-    // ==============================================
-    // SEND TRANSCRIPT
-    // ==============================================
-
     await transcriptChannel.send({
       embeds: [transcriptEmbed],
       files: [transcriptFile]
@@ -388,23 +315,15 @@ async function closeTicket(interaction) {
 
     activeTickets.delete(channel.id);
 
-    // Delete ticket after 3 seconds
     setTimeout(async () => {
-      await channel
-        .delete("Ticket closed")
-        .catch(console.error);
+      await channel.delete("Ticket closed").catch(console.error);
     }, 3000);
-
   } catch (error) {
-    console.error(
-      "Ticket closing error:",
-      error
-    );
+    console.error("Ticket closing error:", error);
 
     if (interaction.deferred) {
       await interaction.editReply({
-        content:
-          "❌ Something went wrong while closing the ticket."
+        content: "❌ Something went wrong while closing the ticket."
       }).catch(() => {});
     }
   }
