@@ -1,5 +1,9 @@
-const { EmbedBuilder } = require("discord.js");
+const {
+  EmbedBuilder
+} = require("discord.js");
+
 const config = require("../config");
+
 const {
   createTicket,
   closeTicket
@@ -9,16 +13,45 @@ const BLUE = 0x0000ff;
 
 const activeApplications = new Set();
 
-function cleanAnswer(text) {
-  return text.length > 1000 ? text.slice(0, 1000) + "..." : text;
+function getQuestionText(question) {
+  if (typeof question === "string") {
+    return question;
+  }
+
+  if (question && typeof question.question === "string") {
+    return question.question;
+  }
+
+  return "Question not configured correctly.";
 }
 
+function isYesNoQuestion(question) {
+  return (
+    typeof question === "object" &&
+    question.type === "yesno"
+  );
+}
+
+function cleanAnswer(text) {
+  if (!text) return "No answer";
+
+  return text.length > 1000
+    ? text.slice(0, 1000) + "..."
+    : text;
+}
+
+
+// ==========================================
+// START APPLICATION
+// ==========================================
+
 async function startApplication(interaction, type) {
+
   const application = config.applications[type];
 
   if (!application) {
     return interaction.reply({
-      content: "That application does not exist.",
+      content: "❌ That application does not exist.",
       ephemeral: true
     });
   }
@@ -26,7 +59,7 @@ async function startApplication(interaction, type) {
   if (activeApplications.has(interaction.user.id)) {
     return interaction.reply({
       content:
-        "You already have an application running. Type `cancel` in your DMs to cancel it.",
+        "❌ You already have an application running. Type `cancel` in your DMs to cancel it.",
       ephemeral: true
     });
   }
@@ -39,15 +72,21 @@ async function startApplication(interaction, type) {
   });
 
   try {
+
     const dm = await interaction.user.createDM();
+
+    // ==========================================
+    // START MESSAGE
+    // ==========================================
 
     const startEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle(`${application.emoji} ${application.name}`)
       .setDescription(
         "Thank you for applying!\n\n" +
-        "You will be asked a few questions. Answer each question one at a time.\n\n" +
-        "❌ **Type `cancel` at any time to cancel your application.**"
+        "You will be asked a few questions.\n\n" +
+        "Answer each question one at a time.\n\n" +
+        "❌ Type `cancel` at any time to cancel."
       )
       .setFooter({
         text: interaction.guild?.name || "Application"
@@ -60,94 +99,298 @@ async function startApplication(interaction, type) {
 
     const answers = [];
 
-    for (let i = 0; i < application.questions.length; i++) {
-      const questionEmbed = new EmbedBuilder()
-        .setColor(BLUE)
-        .setTitle(`${application.emoji} ${application.name}`)
-        .setDescription(
-          `**Question ${i + 1}/${application.questions.length}**\n\n` +
-          `${application.questions[i]}\n\n` +
-          "💬 **Type your answer below.**\n" +
-          "❌ Type `cancel` to cancel."
-        )
-        .setFooter({
-          text: `Question ${i + 1} of ${application.questions.length}`
-        })
-        .setTimestamp();
+    // ==========================================
+    // QUESTIONS
+    // ==========================================
 
-      await dm.send({
-        embeds: [questionEmbed]
-      });
+    for (
+      let i = 0;
+      i < application.questions.length;
+      i++
+    ) {
 
-      const collected = await dm.awaitMessages({
-        filter: message => message.author.id === interaction.user.id,
-        max: 1,
-        time: 10 * 60 * 1000,
-        errors: ["time"]
-      });
+      const currentQuestion =
+        application.questions[i];
 
-      const answer = collected.first().content.trim();
+      const questionText =
+        getQuestionText(currentQuestion);
 
-      if (answer.toLowerCase() === "cancel") {
-        const cancelEmbed = new EmbedBuilder()
+      const yesNo =
+        isYesNoQuestion(currentQuestion);
+
+      // ========================================
+      // YES / NO QUESTION
+      // ========================================
+
+      if (yesNo) {
+
+        const questionEmbed = new EmbedBuilder()
           .setColor(BLUE)
-          .setTitle("❌ Application Cancelled")
+          .setTitle(`${application.emoji} ${application.name}`)
           .setDescription(
-            "Your application has been cancelled.\n\n" +
-            "You can start a new application whenever you are ready."
+            `**Question ${i + 1}/${application.questions.length}**\n\n` +
+            `${questionText}\n\n` +
+            `Type **yes** or **no**.\n\n` +
+            `❌ Type \`cancel\` to cancel.`
           )
+          .setFooter({
+            text: `Question ${i + 1} of ${application.questions.length}`
+          })
           .setTimestamp();
 
         await dm.send({
-          embeds: [cancelEmbed]
+          embeds: [questionEmbed]
         });
 
-        return;
-      }
+        let answer;
 
-      answers.push(answer);
+        while (!answer) {
 
-      if (i < application.questions.length - 1) {
-        const receivedEmbed = new EmbedBuilder()
-          .setColor(BLUE)
-          .setDescription(
-            `✅ **Answer ${i + 1} received.**\n\n` +
-            `Moving on to question ${i + 2}.`
-          );
+          try {
+
+            const collected = await dm.awaitMessages({
+              filter: message =>
+                message.author.id ===
+                interaction.user.id,
+
+              max: 1,
+
+              time: 10 * 60 * 1000,
+
+              errors: ["time"]
+            });
+
+            const response =
+              collected.first().content
+                .trim()
+                .toLowerCase();
+
+            // CANCEL
+
+            if (response === "cancel") {
+
+              await dm.send({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor(BLUE)
+                    .setTitle("❌ Application Cancelled")
+                    .setDescription(
+                      "Your application has been cancelled."
+                    )
+                    .setTimestamp()
+                ]
+              });
+
+              return;
+            }
+
+            // YES
+
+            if (response === "yes") {
+
+              answer = "Yes";
+
+            }
+
+            // NO
+
+            else if (response === "no") {
+
+              answer = "No";
+
+            }
+
+            // INVALID ANSWER
+
+            else {
+
+              await dm.send({
+                embeds: [
+                  new EmbedBuilder()
+                    .setColor(BLUE)
+                    .setDescription(
+                      "❌ Please answer with **yes** or **no**."
+                    )
+                ]
+              });
+
+            }
+
+          } catch {
+
+            await dm.send({
+              embeds: [
+                new EmbedBuilder()
+                  .setColor(BLUE)
+                  .setTitle("⏰ Application Timed Out")
+                  .setDescription(
+                    "You took too long to answer the question.\n\n" +
+                    "Please start the application again."
+                  )
+                  .setTimestamp()
+              ]
+            });
+
+            return;
+          }
+        }
+
+        // Save answer
+
+        answers.push({
+          question: questionText,
+          answer: answer
+        });
+
+        // Reply with Yes / No
 
         await dm.send({
-          embeds: [receivedEmbed]
+          embeds: [
+            new EmbedBuilder()
+              .setColor(BLUE)
+              .setDescription(`**${answer}**`)
+          ]
         });
+
       }
+
+      // ========================================
+      // NORMAL QUESTION
+      // ========================================
+
+      else {
+
+        const questionEmbed = new EmbedBuilder()
+          .setColor(BLUE)
+          .setTitle(`${application.emoji} ${application.name}`)
+          .setDescription(
+            `**Question ${i + 1}/${application.questions.length}**\n\n` +
+            `${questionText}\n\n` +
+            `💬 Type your answer below.\n\n` +
+            `❌ Type \`cancel\` to cancel.`
+          )
+          .setFooter({
+            text: `Question ${i + 1} of ${application.questions.length}`
+          })
+          .setTimestamp();
+
+        await dm.send({
+          embeds: [questionEmbed]
+        });
+
+        try {
+
+          const collected = await dm.awaitMessages({
+            filter: message =>
+              message.author.id ===
+              interaction.user.id,
+
+            max: 1,
+
+            time: 10 * 60 * 1000,
+
+            errors: ["time"]
+          });
+
+          const answer =
+            collected.first().content.trim();
+
+          // CANCEL
+
+          if (
+            answer.toLowerCase() === "cancel"
+          ) {
+
+            await dm.send({
+              embeds: [
+                new EmbedBuilder()
+                  .setColor(BLUE)
+                  .setTitle("❌ Application Cancelled")
+                  .setDescription(
+                    "Your application has been cancelled."
+                  )
+                  .setTimestamp()
+              ]
+            });
+
+            return;
+          }
+
+          // Save answer
+
+          answers.push({
+            question: questionText,
+            answer: answer
+          });
+
+        } catch {
+
+          await dm.send({
+            embeds: [
+              new EmbedBuilder()
+                .setColor(BLUE)
+                .setTitle("⏰ Application Timed Out")
+                .setDescription(
+                  "You took too long to answer the question.\n\n" +
+                  "Please start the application again."
+                )
+                .setTimestamp()
+            ]
+          });
+
+          return;
+        }
+      }
+
+      // ========================================
+      // NO "ANSWER RECEIVED" MESSAGE
+      // ========================================
+      // The next question starts immediately.
+
     }
 
-    const resultChannel = await interaction.client.channels
-      .fetch(config.applicationChannelId)
-      .catch(() => null);
+    // ==========================================
+    // APPLICATION CHANNEL
+    // ==========================================
 
-    if (!resultChannel || !resultChannel.isTextBased()) {
-      const errorEmbed = new EmbedBuilder()
-        .setColor(BLUE)
-        .setTitle("❌ Application Error")
-        .setDescription(
-          "Your application was completed, but the application review channel is not configured correctly.\n\n" +
-          "Please contact a staff member."
-        )
-        .setTimestamp();
+    const resultChannel =
+      await interaction.client.channels
+        .fetch(config.applicationChannelId)
+        .catch(() => null);
+
+    if (
+      !resultChannel ||
+      !resultChannel.isTextBased()
+    ) {
 
       await dm.send({
-        embeds: [errorEmbed]
+        embeds: [
+          new EmbedBuilder()
+            .setColor(BLUE)
+            .setTitle("❌ Application Error")
+            .setDescription(
+              "Your application was completed, but the application review channel is not configured correctly."
+            )
+            .setTimestamp()
+        ]
       });
 
       return;
     }
 
+    // ==========================================
+    // APPLICATION RESULT
+    // ==========================================
+
     const resultEmbed = new EmbedBuilder()
       .setColor(BLUE)
-      .setTitle(`${application.emoji} ${application.name}`)
+      .setTitle(
+        `${application.emoji} ${application.name}`
+      )
       .setAuthor({
         name: interaction.user.tag,
-        iconURL: interaction.user.displayAvatarURL()
+        iconURL:
+          interaction.user.displayAvatarURL()
       })
       .setDescription(
         `**Applicant:** ${interaction.user}\n` +
@@ -155,130 +398,186 @@ async function startApplication(interaction, type) {
       )
       .setTimestamp();
 
-    application.questions.forEach((question, index) => {
+    answers.forEach((item, index) => {
+
       resultEmbed.addFields({
-        name: `Q${index + 1}. ${question}`,
-        value: cleanAnswer(answers[index]) || "No answer"
+        name:
+          `Q${index + 1}. ${item.question}`,
+
+        value:
+          cleanAnswer(item.answer)
       });
+
     });
 
     await resultChannel.send({
       embeds: [resultEmbed]
     });
 
-    const submittedEmbed = new EmbedBuilder()
-      .setColor(BLUE)
-      .setTitle("✅ Application Submitted")
-      .setDescription(
-        `Your **${application.name}** has been successfully submitted!\n\n` +
-        "The staff team will review your application.\n\n" +
-        "Thank you for applying! ❤️"
-      )
-      .setTimestamp();
+    // ==========================================
+    // SUBMITTED
+    // ==========================================
 
     await dm.send({
-      embeds: [submittedEmbed]
+      embeds: [
+        new EmbedBuilder()
+          .setColor(BLUE)
+          .setTitle("✅ Application Submitted")
+          .setDescription(
+            `Your **${application.name}** has been successfully submitted!\n\n` +
+            "The staff team will review your application.\n\n" +
+            "Thank you for applying! ❤️"
+          )
+          .setTimestamp()
+      ]
     });
 
   } catch (error) {
-    console.error("Application error:", error);
+
+    console.error(
+      "Application error:",
+      error
+    );
 
     try {
-      const errorEmbed = new EmbedBuilder()
-        .setColor(BLUE)
-        .setTitle("❌ Application Ended")
-        .setDescription(
-          "Your application timed out or I couldn't send you a message.\n\n" +
-          "Please try starting the application again."
-        )
-        .setTimestamp();
 
       await interaction.user.send({
-        embeds: [errorEmbed]
+        embeds: [
+          new EmbedBuilder()
+            .setColor(BLUE)
+            .setTitle("❌ Application Error")
+            .setDescription(
+              "Something went wrong with your application. Please try again."
+            )
+            .setTimestamp()
+        ]
       });
+
     } catch {}
 
   } finally {
-    activeApplications.delete(interaction.user.id);
+
+    activeApplications.delete(
+      interaction.user.id
+    );
+
   }
 }
 
+
+// ==========================================
+// INTERACTION CREATE
+// ==========================================
+
 module.exports = {
+
   name: "interactionCreate",
 
   async execute(interaction) {
 
-    // ==============================
+    // ========================================
     // SLASH COMMANDS
-    // ==============================
+    // ========================================
 
     if (interaction.isChatInputCommand()) {
-      const command = interaction.client.commands.get(
-        interaction.commandName
-      );
+
+      const command =
+        interaction.client.commands.get(
+          interaction.commandName
+        );
 
       if (!command) return;
 
       try {
+
         await command.execute(interaction);
+
       } catch (error) {
+
         console.error(error);
 
-        if (interaction.replied || interaction.deferred) {
+        if (
+          interaction.replied ||
+          interaction.deferred
+        ) {
+
           await interaction.followUp({
-            content: "There was an error running that command.",
+            content:
+              "There was an error running that command.",
             ephemeral: true
           }).catch(() => {});
+
         } else {
+
           await interaction.reply({
-            content: "There was an error running that command.",
+            content:
+              "There was an error running that command.",
             ephemeral: true
           }).catch(() => {});
+
         }
       }
 
       return;
     }
 
-    // ==============================
-    // TICKET BUTTONS
-    // ==============================
+
+    // ========================================
+    // TICKETS
+    // ========================================
 
     if (
       interaction.isButton() &&
       interaction.customId.startsWith("ticket_")
     ) {
 
-      // Close ticket
-      if (interaction.customId === "ticket_close") {
+      if (
+        interaction.customId ===
+        "ticket_close"
+      ) {
+
         return closeTicket(interaction);
+
       }
 
-      // Create ticket
-      const type = interaction.customId.replace(
-        "ticket_",
-        ""
-      );
+      const type =
+        interaction.customId.replace(
+          "ticket_",
+          ""
+        );
 
       if (config.tickets[type]) {
-        return createTicket(interaction, type);
+
+        return createTicket(
+          interaction,
+          type
+        );
+
       }
     }
 
-    // ==============================
+
+    // ========================================
     // APPLICATION BUTTONS
-    // ==============================
+    // ========================================
 
     if (
       interaction.isButton() &&
-      interaction.customId.startsWith("application_")
+      interaction.customId.startsWith(
+        "application_"
+      )
     ) {
-      const type = interaction.customId.replace(
-        "application_",
-        ""
-      );
 
-      return startApplication(interaction, type);
+      const type =
+        interaction.customId.replace(
+          "application_",
+          ""
+        );
+
+      return startApplication(
+        interaction,
+        type
+      );
     }
   }
 };
