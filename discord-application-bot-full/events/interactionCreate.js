@@ -1,7 +1,12 @@
 const { EmbedBuilder } = require("discord.js");
 const config = require("../config");
+const {
+  createTicket,
+  closeTicket
+} = require("../ticketManager");
 
 const BLUE = 0x0000ff;
+
 const activeApplications = new Set();
 
 function cleanAnswer(text) {
@@ -20,7 +25,8 @@ async function startApplication(interaction, type) {
 
   if (activeApplications.has(interaction.user.id)) {
     return interaction.reply({
-      content: "You already have an application running. Type `cancel` in your DMs to cancel it.",
+      content:
+        "You already have an application running. Type `cancel` in your DMs to cancel it.",
       ephemeral: true
     });
   }
@@ -35,7 +41,6 @@ async function startApplication(interaction, type) {
   try {
     const dm = await interaction.user.createDM();
 
-    // START APPLICATION
     const startEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle(`${application.emoji} ${application.name}`)
@@ -55,7 +60,6 @@ async function startApplication(interaction, type) {
 
     const answers = [];
 
-    // QUESTIONS
     for (let i = 0; i < application.questions.length; i++) {
       const questionEmbed = new EmbedBuilder()
         .setColor(BLUE)
@@ -84,7 +88,6 @@ async function startApplication(interaction, type) {
 
       const answer = collected.first().content.trim();
 
-      // CANCEL
       if (answer.toLowerCase() === "cancel") {
         const cancelEmbed = new EmbedBuilder()
           .setColor(BLUE)
@@ -104,7 +107,6 @@ async function startApplication(interaction, type) {
 
       answers.push(answer);
 
-      // ANSWER RECEIVED
       if (i < application.questions.length - 1) {
         const receivedEmbed = new EmbedBuilder()
           .setColor(BLUE)
@@ -119,7 +121,6 @@ async function startApplication(interaction, type) {
       }
     }
 
-    // APPLICATION CHANNEL
     const resultChannel = await interaction.client.channels
       .fetch(config.applicationChannelId)
       .catch(() => null);
@@ -141,7 +142,6 @@ async function startApplication(interaction, type) {
       return;
     }
 
-    // APPLICATION SENT TO STAFF
     const resultEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle(`${application.emoji} ${application.name}`)
@@ -166,7 +166,6 @@ async function startApplication(interaction, type) {
       embeds: [resultEmbed]
     });
 
-    // SUBMITTED
     const submittedEmbed = new EmbedBuilder()
       .setColor(BLUE)
       .setTitle("✅ Application Submitted")
@@ -209,7 +208,10 @@ module.exports = {
 
   async execute(interaction) {
 
+    // ==============================
     // SLASH COMMANDS
+    // ==============================
+
     if (interaction.isChatInputCommand()) {
       const command = interaction.client.commands.get(
         interaction.commandName
@@ -238,7 +240,35 @@ module.exports = {
       return;
     }
 
+    // ==============================
+    // TICKET BUTTONS
+    // ==============================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("ticket_")
+    ) {
+
+      // Close ticket
+      if (interaction.customId === "ticket_close") {
+        return closeTicket(interaction);
+      }
+
+      // Create ticket
+      const type = interaction.customId.replace(
+        "ticket_",
+        ""
+      );
+
+      if (config.tickets[type]) {
+        return createTicket(interaction, type);
+      }
+    }
+
+    // ==============================
     // APPLICATION BUTTONS
+    // ==============================
+
     if (
       interaction.isButton() &&
       interaction.customId.startsWith("application_")
