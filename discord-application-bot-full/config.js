@@ -3,16 +3,12 @@ module.exports = {
   // CHANNEL IDS
   // ==================================================
 
-  // Welcome messages are sent here
   welcomeChannelId: "PUT_WELCOME_CHANNEL_ID_HERE",
 
-  // Leave messages are sent here
   leaveChannelId: "PUT_LEAVE_CHANNEL_ID_HERE",
 
-  // Application panel is sent here
   applicationChannelId: "PUT_APPLICATION_CHANNEL_ID_HERE",
 
-  // Ticket transcripts are sent here
   transcriptChannelId: "PUT_TRANSCRIPT_CHANNEL_ID_HERE",
 
 
@@ -71,93 +67,68 @@ module.exports = {
   tickets: {
 
     // ==================================================
-    // 🔴 SUPPORT TICKET
+    // TICKET PANEL
+    // ==================================================
+
+    panel: {
+      title: "8B | Branko's community",
+
+      description:
+        "Thanks for reaching out, feel free to make a ticket.\n\n" +
+        "Click a button below to open a ticket in the relevant category.\n\n" +
+        "Only open a ticket if you genuinely need help.\n\n" +
+        "Brankos community support"
+    },
+
+
+    // ==================================================
+    // SUPPORT TICKET
     // ==================================================
 
     support: {
-
-      // This controls the ticket channel name
       name: "support",
-
-      // THIS controls the button name
       label: "Support",
-
-      // THIS controls the button emoji
-      emoji: "",
-
-      // THIS controls the ticket button colour
+      emoji: "🔴",
       color: 0xFF0000,
-
-      // Category where the ticket is created
       categoryId: "1510706105490342131"
     },
 
 
     // ==================================================
-    // 🟢 PARTNER TICKET
+    // PARTNER TICKET
     // ==================================================
 
     partner: {
-
-      // Ticket channel name
       name: "partner",
-
-      // THIS controls the button name
       label: "Partner",
-
-      // THIS controls the button emoji
-      emoji: "",
-
-      // THIS controls the ticket embed colour
+      emoji: "🟢",
       color: 0x00FF00,
-
-      // Category where the ticket is created
       categoryId: "1510706100998111473"
     },
 
 
     // ==================================================
-    // 🟢 BUY/SELL SPAWNERS TICKET
+    // BUY/SELL SPAWNERS TICKET
     // ==================================================
 
     spawners: {
-
-      // Ticket channel name
       name: "buy-sell-spawners",
-
-      // THIS controls the button name
       label: "Buy/Sell Spawners",
-
-      // THIS controls the button emoji
-      emoji: "",
-
-      // THIS controls the ticket embed colour
+      emoji: "🟢",
       color: 0x00FF00,
-
-      // Category where the ticket is created
       categoryId: "1510706100998111473"
     },
 
 
     // ==================================================
-    // 🔵 SPONSOR TICKET
+    // SPONSOR TICKET
     // ==================================================
 
     sponsor: {
-
-      // Ticket channel name
       name: "sponsor",
-
-      // THIS controls the button name
       label: "Sponsor",
-
-      // THIS controls the button emoji
-      emoji: "",
-
-      // THIS controls the ticket embed colour
+      emoji: "🔵",
       color: 0x0000FF,
-
-      // Category where the ticket is created
       categoryId: "1526976384826736641"
     }
   },
@@ -170,7 +141,7 @@ module.exports = {
   applications: {
 
     // ==================================================
-    // 🛡️ STAFF APPLICATION
+    // STAFF APPLICATION
     // ==================================================
 
     staff: {
@@ -218,7 +189,7 @@ module.exports = {
 
 
     // ==================================================
-    // 🤝 PARTNER MANAGER APPLICATION
+    // PARTNER MANAGER APPLICATION
     // ==================================================
 
     partner: {
@@ -266,7 +237,7 @@ module.exports = {
 
 
     // ==================================================
-    // 🏗️ BUILDER APPLICATION
+    // BUILDER APPLICATION
     // ==================================================
 
     builder: {
