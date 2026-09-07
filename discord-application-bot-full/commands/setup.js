@@ -11,7 +11,7 @@ const BLUE = 0x0000FF;
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("setup")
+    .setName("application-setup")
     .setDescription("Send the application panel.")
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ManageGuild
