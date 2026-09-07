@@ -7,9 +7,90 @@ const {
   PermissionsBitField
 } = require("discord.js");
 
+const fs = require("fs");
+const path = require("path");
+
 const config = require("./config");
 
 const giveaways = new Map();
+
+// ================================
+// PERSISTENCE
+// ================================
+// Giveaway timers live in memory (setTimeout), which means a bot
+// restart normally wipes them out — the giveaway never actually ends,
+// the button never disappears, and no winner ever gets picked.
+// To fix that, every change gets written to disk, and on startup we
+// reload anything still pending and reschedule (or immediately end,
+// if its time already passed while the bot was offline).
+
+const DATA_FILE = path.join(__dirname, "giveaways.json");
+
+function saveGiveaways() {
+  const serializable = [...giveaways.values()].map(g => ({
+    ...g,
+    entries: [...g.entries],
+    claimed: [...g.claimed]
+  }));
+
+  try {
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify(serializable, null, 2)
+    );
+  } catch (error) {
+    console.error("❌ Could not save giveaways.json:", error);
+  }
+}
+
+function loadGiveawaysFromDisk() {
+  if (!fs.existsSync(DATA_FILE)) return [];
+
+  try {
+    const raw = fs.readFileSync(DATA_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+
+    return parsed.map(g => ({
+      ...g,
+      entries: new Set(g.entries),
+      claimed: new Set(g.claimed)
+    }));
+  } catch (error) {
+    console.error("❌ Could not read giveaways.json:", error);
+    return [];
+  }
+}
+
+// Call this once from your ready event: initGiveaways(client)
+function initGiveaways(client) {
+  const stored = loadGiveawaysFromDisk();
+
+  for (const giveaway of stored) {
+    giveaways.set(giveaway.id, giveaway);
+
+    const remaining = giveaway.endTime - Date.now();
+
+    if (giveaway.winners.length > 0) {
+      // Already had winners picked before restart — nothing left to do.
+      continue;
+    }
+
+    if (remaining <= 0) {
+      // Time already passed while the bot was offline — end it now.
+      endGiveaway(client, giveaway.id).catch(console.error);
+    } else {
+      setTimeout(() => {
+        endGiveaway(client, giveaway.id).catch(console.error);
+      }, remaining);
+    }
+  }
+
+  if (stored.length > 0) {
+    console.log(
+      `🎉 Reloaded ${stored.length} giveaway(s) from disk.`
+    );
+  }
+}
 
 function parseDuration(input) {
   const match = input
@@ -143,6 +224,8 @@ async function startGiveaway({
     giveaway
   );
 
+  saveGiveaways();
+
   setTimeout(() => {
     endGiveaway(
       interaction.client,
@@ -196,6 +279,8 @@ async function joinGiveaway(
   giveaway.entries.add(
     interaction.user.id
   );
+
+  saveGiveaways();
 
   try {
     const channel =
@@ -275,6 +360,8 @@ async function endGiveaway(
   }
 
   giveaway.winners = winners;
+
+  saveGiveaways();
 
   const channel =
     client.channels.cache.get(
@@ -474,6 +561,8 @@ async function claimGiveaway(
     interaction.user.id
   );
 
+  saveGiveaways();
+
   await interaction.reply({
     content:
       `✅ **Ticket created!**\nYour giveaway claim ticket has been created: ${ticketChannel}`,
@@ -547,5 +636,6 @@ async function claimGiveaway(
 module.exports = {
   startGiveaway,
   joinGiveaway,
-  claimGiveaway
+  claimGiveaway,
+  initGiveaways
 };
