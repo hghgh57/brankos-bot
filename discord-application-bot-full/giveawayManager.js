@@ -102,7 +102,7 @@ function createLeaveButton(giveaway) {
 
 // Discord's <t:...:R> tag DOES tick down on its own client-side, but if the
 // message never gets edited some clients cache/stop refreshing it and it
-// visually "sticks". We force a re-render every minute so it never freezes,
+// visually "sticks". We force a re-render every 9s so it never freezes,
 // on top of the live client-side ticking.
 function startCountdownRefresh(client, giveawayId) {
   const giveaway = giveaways.get(giveawayId);
@@ -129,7 +129,7 @@ function startCountdownRefresh(client, giveawayId) {
     } catch (error) {
       console.error("Giveaway countdown refresh error:", error);
     }
-  }, 60 * 1000);
+  }, 9 * 1000);
 }
 
 async function startGiveaway({
@@ -882,7 +882,7 @@ async function claimGiveaway(
 
   await ticketChannel.send({
     content:
-      `<@&${CLAIM_PING_ROLE_ID}> ${hostMention} ${winnerMention}`,
+      `<@&${CLAIM_PING_ROLE_ID}> ${winnerMention}`,
     embeds: [embed],
     components: [row]
   });
