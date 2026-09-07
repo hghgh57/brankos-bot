@@ -34,35 +34,52 @@ function parseDuration(input) {
 }
 
 function createGiveawayEmbed(giveaway) {
+  const hasWinners = giveaway.winners.length > 0;
+
+  const fields = [
+    {
+      name: "Winners",
+      value: `${giveaway.winnerCount}`,
+      inline: false
+    },
+    {
+      name: "Entries",
+      value: `${giveaway.entries.size}`,
+      inline: false
+    },
+    {
+      name: "Hosted by",
+      value: giveaway.host,
+      inline: false
+    }
+  ];
+
+  if (hasWinners) {
+    fields.push({
+      name: "Winner(s)",
+      value: giveaway.winners.map(id => `<@${id}>`).join(" "),
+      inline: false
+    });
+  }
+
   return new EmbedBuilder()
     .setColor(0x0000ff)
     .setTitle(`🎉 ${giveaway.prize}`)
-    .setDescription("Click the button below to enter!")
-    .addFields(
-      {
-        name: "Winners",
-        value: `${giveaway.winnerCount}`,
-        inline: false
-      },
-      {
-        name: "Hosted by",
-        value: giveaway.host,
-        inline: false
-      },
-      {
-        name: "Ends",
-        value: `<t:${Math.floor(giveaway.endTime / 1000)}:R>`,
-        inline: false
-      }
+    .setDescription(
+      hasWinners
+        ? "🎉 This giveaway has ended!"
+        : "Click the button below to enter!"
     )
+    .addFields(fields)
     .setTimestamp(giveaway.endTime);
 }
 
-function createJoinButton(giveaway) {
+function createJoinButton(giveaway, disabled = false) {
   const button = new ButtonBuilder()
     .setCustomId(`giveaway_join_${giveaway.id}`)
     .setLabel(`🎉 Join Giveaway (${giveaway.entries.size})`)
-    .setStyle(ButtonStyle.Primary);
+    .setStyle(ButtonStyle.Primary)
+    .setDisabled(disabled);
 
   return new ActionRowBuilder().addComponents(button);
 }
@@ -160,6 +177,21 @@ async function startGiveaway({
       giveawayId
     ).catch(console.error);
   }, durationMs);
+
+  // DM the host their giveaway ID (needed for /greroll later).
+  try {
+    await interaction.user.send({
+      content:
+        `🎉 Your giveaway for **${prize}** has started in **${interaction.guild.name}**!\n` +
+        `**Giveaway ID:** \`${giveawayId}\`\n` +
+        `Keep this ID — you'll need it to run \`/greroll giveawayid:${giveawayId}\` if you ever need to reroll a winner.`
+    });
+  } catch (error) {
+    console.error(
+      "Could not DM giveaway host (DMs may be closed):",
+      error
+    );
+  }
 
   return {
     success: true,
@@ -427,6 +459,8 @@ async function endGiveaway(
     components: [row]
   });
 
+  // Keep the original giveaway message up (with the final embed and a
+  // disabled join button) instead of stripping its components away.
   try {
     const originalMessage =
       await channel.messages.fetch(
@@ -434,14 +468,136 @@ async function endGiveaway(
       );
 
     await originalMessage.edit({
-      components: []
+      embeds: [
+        createGiveawayEmbed(giveaway)
+      ],
+      components: [
+        createJoinButton(giveaway, true)
+      ]
     });
   } catch (error) {
     console.error(
-      "Could not remove giveaway button:",
+      "Could not update the giveaway message after it ended:",
       error
     );
   }
+}
+
+async function rerollGiveaway(
+  interaction,
+  giveawayId
+) {
+  const giveaway =
+    giveaways.get(giveawayId);
+
+  if (!giveaway) {
+    return interaction.reply({
+      content:
+        "❌ This giveaway no longer exists.",
+      ephemeral: true
+    });
+  }
+
+  if (giveaway.winners.length === 0) {
+    return interaction.reply({
+      content:
+        "❌ This giveaway hasn't ended yet, so there's nothing to reroll.",
+      ephemeral: true
+    });
+  }
+
+  const entries = [
+    ...giveaway.entries
+  ];
+
+  if (entries.length === 0) {
+    return interaction.reply({
+      content:
+        "❌ There are no entries to pick a new winner from.",
+      ephemeral: true
+    });
+  }
+
+  const winnerCount = Math.min(
+    giveaway.winnerCount,
+    entries.length
+  );
+
+  const newWinners = [];
+
+  while (
+    newWinners.length < winnerCount &&
+    entries.length > 0
+  ) {
+    const randomIndex =
+      Math.floor(
+        Math.random() * entries.length
+      );
+
+    newWinners.push(
+      entries.splice(randomIndex, 1)[0]
+    );
+  }
+
+  giveaway.winners = newWinners;
+  giveaway.claimed = new Set();
+
+  const winnerMentions =
+    newWinners
+      .map(id => `<@${id}>`)
+      .join(" ");
+
+  const channel =
+    interaction.client.channels.cache.get(
+      giveaway.channelId
+    );
+
+  if (channel) {
+    const claimButton =
+      new ButtonBuilder()
+        .setCustomId(
+          `giveaway_claim_${giveaway.id}`
+        )
+        .setLabel("Claim Now")
+        .setStyle(ButtonStyle.Success);
+
+    const row =
+      new ActionRowBuilder().addComponents(
+        claimButton
+      );
+
+    await channel.send({
+      content:
+        `🎉 New winner(s) for **${giveaway.prize}**: ${winnerMentions}!`,
+      components: [row]
+    });
+
+    try {
+      const originalMessage =
+        await channel.messages.fetch(
+          giveaway.messageId
+        );
+
+      await originalMessage.edit({
+        embeds: [
+          createGiveawayEmbed(giveaway)
+        ],
+        components: [
+          createJoinButton(giveaway, true)
+        ]
+      });
+    } catch (error) {
+      console.error(
+        "Could not update the giveaway message after reroll:",
+        error
+      );
+    }
+  }
+
+  return interaction.reply({
+    content: `✅ Rerolled! New winner(s): ${winnerMentions}`,
+    ephemeral: true
+  });
 }
 
 async function claimGiveaway(
@@ -665,5 +821,6 @@ module.exports = {
   startGiveaway,
   joinGiveaway,
   leaveGiveaway,
-  claimGiveaway
+  claimGiveaway,
+  rerollGiveaway
 };
