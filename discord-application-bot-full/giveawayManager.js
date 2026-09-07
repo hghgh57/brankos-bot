@@ -81,7 +81,7 @@ function createGiveawayEmbed(giveaway) {
 
   const lines = [
     hasWinners
-      ? "This giveaway has ended!"
+      ? ""
       : "Click the button below to enter!",
     "",
     hasWinners
@@ -514,7 +514,7 @@ async function endGiveaway(
         `giveaway_claim_${giveaway.id}`
       )
       .setLabel(
-        "Claim Now"
+        "Claim Prize"
       )
       .setEmoji("🎁")
       .setStyle(
