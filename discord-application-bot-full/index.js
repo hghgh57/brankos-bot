@@ -12,68 +12,138 @@ const path = require("path");
 
 const client = new Client({
   intents: [
+    // Server/guild information
     GatewayIntentBits.Guilds,
+
+    // REQUIRED for guildMemberAdd / guildMemberRemove
     GatewayIntentBits.GuildMembers,
+
+    // Messages
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
+
+    // Voice channels
+    GatewayIntentBits.GuildVoiceStates,
+
+    // DMs
     GatewayIntentBits.DirectMessages
   ],
 
-  partials: [Partials.Channel]
+  partials: [
+    Partials.Channel
+  ]
 });
 
 client.commands = new Collection();
 
-const commandsPath = path.join(
-  __dirname,
-  "commands"
-);
+// Make client available to other files
+global.client = client;
+
+// ================================
+// LOAD COMMANDS
+// ================================
+
+const commandsPath =
+  path.join(__dirname, "commands");
 
 for (
   const file of fs
     .readdirSync(commandsPath)
-    .filter(f => f.endsWith(".js"))
+    .filter(file => file.endsWith(".js"))
 ) {
-  const command = require(
-    path.join(commandsPath, file)
-  );
+  try {
+    const command =
+      require(path.join(commandsPath, file));
 
-  client.commands.set(
-    command.data.name,
-    command
-  );
-}
+    if (
+      command &&
+      command.data &&
+      command.data.name
+    ) {
+      client.commands.set(
+        command.data.name,
+        command
+      );
 
-const eventsPath = path.join(
-  __dirname,
-  "events"
-);
+      console.log(
+        `✅ Loaded command: /${command.data.name}`
+      );
+    } else {
+      console.log(
+        `⚠️ Skipped invalid command file: ${file}`
+      );
+    }
 
-for (
-  const file of fs
-    .readdirSync(eventsPath)
-    .filter(f => f.endsWith(".js"))
-) {
-  const event = require(
-    path.join(eventsPath, file)
-  );
-
-  if (event.once) {
-    client.once(
-      event.name,
-      (...args) =>
-        event.execute(...args, client)
-    );
-  } else {
-    client.on(
-      event.name,
-      (...args) =>
-        event.execute(...args, client)
+  } catch (error) {
+    console.error(
+      `❌ Failed to load command ${file}:`,
+      error
     );
   }
 }
 
-global.client = client;
+// ================================
+// LOAD EVENTS
+// ================================
+
+const eventsPath =
+  path.join(__dirname, "events");
+
+for (
+  const file of fs
+    .readdirSync(eventsPath)
+    .filter(file => file.endsWith(".js"))
+) {
+  try {
+    const event =
+      require(path.join(eventsPath, file));
+
+    if (
+      !event ||
+      !event.name ||
+      !event.execute
+    ) {
+      console.log(
+        `⚠️ Skipped invalid event file: ${file}`
+      );
+
+      continue;
+    }
+
+    if (event.once) {
+      client.once(
+        event.name,
+        (...args) =>
+          event.execute(
+            ...args,
+            client
+          )
+      );
+    } else {
+      client.on(
+        event.name,
+        (...args) =>
+          event.execute(
+            ...args,
+            client
+          )
+      );
+    }
+
+    console.log(
+      `✅ Loaded event: ${event.name}`
+    );
+
+  } catch (error) {
+    console.error(
+      `❌ Failed to load event ${file}:`,
+      error
+    );
+  }
+}
+
+// ================================
+// LOGIN
+// ================================
 
 client.login(process.env.TOKEN);
