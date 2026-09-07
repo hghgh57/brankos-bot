@@ -272,6 +272,66 @@ module.exports = {
         return;
       }
 
+      /* =====================================================
+         GIVEAWAY BUTTONS
+      ===================================================== */
+
+      if (interaction.isButton()) {
+        if (interaction.customId.startsWith('giveaway_claim_')) {
+          const giveawayId = interaction.customId.slice('giveaway_claim_'.length);
+
+          if (!giveawayId) {
+            return interaction.reply({
+              content: '❌ Invalid giveaway.',
+              ephemeral: true,
+            });
+          }
+
+          await rootGiveawayManager.claimGiveaway(
+            interaction,
+            giveawayId
+          );
+
+          return;
+        }
+
+        if (interaction.customId.startsWith('giveaway_join_')) {
+          const giveawayId = interaction.customId.slice('giveaway_join_'.length);
+
+          if (!giveawayId) {
+            return interaction.reply({
+              content: '❌ Invalid giveaway.',
+              ephemeral: true,
+            });
+          }
+
+          await rootGiveawayManager.joinGiveaway(
+            interaction,
+            giveawayId
+          );
+
+          return;
+        }
+
+        if (interaction.customId.startsWith('giveaway_leave_')) {
+          const giveawayId = interaction.customId.slice('giveaway_leave_'.length);
+
+          if (!giveawayId) {
+            return interaction.reply({
+              content: '❌ Invalid giveaway.',
+              ephemeral: true,
+            });
+          }
+
+          await rootGiveawayManager.leaveGiveaway(
+            interaction,
+            giveawayId
+          );
+
+          return;
+        }
+      }
+
 
       /* =====================================================
          NORMAL / SERVICE TICKET DROPDOWNS
