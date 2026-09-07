@@ -263,7 +263,7 @@ async function endGiveaway(
   const winners = [];
 
   while (
-    winners.length 
+    winners.length <
       giveaway.winnerCount &&
     entries.length > 0
   ) {
