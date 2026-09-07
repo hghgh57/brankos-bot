@@ -6,22 +6,22 @@ const {
   ChannelType, 
   PermissionsBitField 
 } = require("discord.js"); 
- 
+
 const config = require("./config"); 
- 
+
 const giveaways = new Map(); 
- 
+
 function parseDuration(input) { 
   const match = input 
     .toLowerCase() 
     .trim() 
     .match(/^(\d+)\s*(s|m|h|d|w)$/); 
- 
+
   if (!match) return null; 
- 
+
   const amount = Number(match[1]); 
   const unit = match[2]; 
- 
+
   const multipliers = { 
     s: 1000, 
     m: 60 * 1000, 
@@ -29,13 +29,14 @@ function parseDuration(input) {
     d: 24 * 60 * 60 * 1000, 
     w: 7 * 24 * 60 * 60 * 1000 
   }; 
- 
+
   return amount * multipliers[unit]; 
 } 
- 
+
 function createGiveawayEmbed(giveaway) { 
   const hasWinners = giveaway.winners.length > 0; 
- 
+  const endTimestamp = Math.floor(giveaway.endTime / 1000); 
+
   const fields = [ 
     { 
       name: "Winners", 
@@ -49,11 +50,11 @@ function createGiveawayEmbed(giveaway) {
     }, 
     { 
       name: "Ends", 
-      value: `<t:${Math.floor(giveaway.endTime / 1000)}:R>`, 
+      value: `<t:${endTimestamp}:R>\n<t:${endTimestamp}:F>`, 
       inline: false 
     } 
   ]; 
- 
+
   if (hasWinners) { 
     fields.push({ 
       name: "Winner(s)", 
@@ -61,38 +62,37 @@ function createGiveawayEmbed(giveaway) {
       inline: false 
     }); 
   } 
- 
+
   return new EmbedBuilder() 
     .setColor(0x0000ff) 
-    .setTitle(`🎉 ${giveaway.prize}`) 
+    .setTitle(`${giveaway.prize}`) 
     .setDescription( 
       hasWinners 
         ? "🎉 This giveaway has ended!" 
         : "Click the button below to enter!" 
     ) 
-    .addFields(fields) 
-    .setTimestamp(giveaway.endTime); 
+    .addFields(fields); 
 } 
- 
+
 function createJoinButton(giveaway, disabled = false) { 
   const button = new ButtonBuilder() 
     .setCustomId(`giveaway_join_${giveaway.id}`) 
     .setLabel(`🎉 Join Giveaway (${giveaway.entries.size})`) 
     .setStyle(ButtonStyle.Primary) 
     .setDisabled(disabled); 
- 
+
   return new ActionRowBuilder().addComponents(button); 
 } 
- 
+
 function createLeaveButton(giveaway) { 
   const button = new ButtonBuilder() 
     .setCustomId(`giveaway_leave_${giveaway.id}`) 
     .setLabel("Leave Giveaway") 
     .setStyle(ButtonStyle.Danger); 
- 
+
   return new ActionRowBuilder().addComponents(button); 
 } 
- 
+
 async function startGiveaway({ 
   interaction, 
   prize, 
@@ -100,7 +100,7 @@ async function startGiveaway({
   duration 
 }) { 
   const durationMs = parseDuration(duration); 
- 
+
   if (!durationMs) { 
     return { 
       success: false, 
@@ -108,7 +108,7 @@ async function startGiveaway({
         "Invalid duration. Use `10m`, `1h`, `7d` or `1w`." 
     }; 
   } 
- 
+
   if (durationMs < 10000) { 
     return { 
       success: false, 
@@ -116,7 +116,7 @@ async function startGiveaway({
         "The giveaway must last at least 10 seconds." 
     }; 
   } 
- 
+
   if ( 
     durationMs > 
     30 * 24 * 60 * 60 * 1000 
@@ -127,32 +127,32 @@ async function startGiveaway({
         "The giveaway cannot last longer than 30 days." 
     }; 
   } 
- 
+
   const giveawayId = 
     `${Date.now()}_${Math.random() 
       .toString(36) 
       .slice(2, 8)}`; 
- 
+
   const giveaway = { 
     id: giveawayId, 
- 
+
     guildId: interaction.guild.id, 
     channelId: interaction.channel.id, 
     messageId: null, 
- 
+
     prize, 
     winnerCount: winners, 
- 
+
     hostId: interaction.user.id, 
     host: `<@${interaction.user.id}>`, 
- 
+
     endTime: Date.now() + durationMs, 
- 
+
     entries: new Set(), 
     winners: [], 
     claimed: new Set() 
   }; 
- 
+
   const giveawayMessage = 
     await interaction.channel.send({ 
       embeds: [ 
@@ -162,22 +162,22 @@ async function startGiveaway({
         createJoinButton(giveaway) 
       ] 
     }); 
- 
+
   giveaway.messageId = 
     giveawayMessage.id; 
- 
+
   giveaways.set( 
     giveawayId, 
     giveaway 
   ); 
- 
+
   setTimeout(() => { 
     endGiveaway( 
       interaction.client, 
       giveawayId 
     ).catch(console.error); 
   }, durationMs); 
- 
+
   // DM the host their giveaway ID (needed for /greroll later). 
   try { 
     await interaction.user.send({ 
@@ -192,20 +192,20 @@ async function startGiveaway({
       error 
     ); 
   } 
- 
+
   return { 
     success: true, 
     giveawayId 
   }; 
 } 
- 
+
 async function joinGiveaway( 
   interaction, 
   giveawayId 
 ) { 
   const giveaway = 
     giveaways.get(giveawayId); 
- 
+
   if (!giveaway) { 
     return interaction.reply({ 
       content: 
@@ -213,7 +213,7 @@ async function joinGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   if ( 
     Date.now() >= 
     giveaway.endTime 
@@ -224,7 +224,7 @@ async function joinGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   if ( 
     giveaway.entries.has( 
       interaction.user.id 
@@ -239,23 +239,23 @@ async function joinGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   giveaway.entries.add( 
     interaction.user.id 
   ); 
- 
+
   try { 
     const channel = 
       interaction.client.channels.cache.get( 
         giveaway.channelId 
       ); 
- 
+
     if (channel) { 
       const message = 
         await channel.messages.fetch( 
           giveaway.messageId 
         ); 
- 
+
       await message.edit({ 
         embeds: [ 
           createGiveawayEmbed( 
@@ -273,7 +273,7 @@ async function joinGiveaway(
       error 
     ); 
   } 
- 
+
   await interaction.reply({ 
     content: 
       "You joined the giveaway", 
@@ -283,14 +283,14 @@ async function joinGiveaway(
     ephemeral: true 
   }); 
 } 
- 
+
 async function leaveGiveaway( 
   interaction, 
   giveawayId 
 ) { 
   const giveaway = 
     giveaways.get(giveawayId); 
- 
+
   if (!giveaway) { 
     await interaction.reply({ 
       content: 
@@ -299,7 +299,7 @@ async function leaveGiveaway(
     }); 
     return { success: false }; 
   } 
- 
+
   if ( 
     Date.now() >= 
     giveaway.endTime 
@@ -311,7 +311,7 @@ async function leaveGiveaway(
     }); 
     return { success: false }; 
   } 
- 
+
   if ( 
     !giveaway.entries.has( 
       interaction.user.id 
@@ -324,23 +324,23 @@ async function leaveGiveaway(
     }); 
     return { success: false }; 
   } 
- 
+
   giveaway.entries.delete( 
     interaction.user.id 
   ); 
- 
+
   try { 
     const channel = 
       interaction.client.channels.cache.get( 
         giveaway.channelId 
       ); 
- 
+
     if (channel) { 
       const message = 
         await channel.messages.fetch( 
           giveaway.messageId 
         ); 
- 
+
       await message.edit({ 
         embeds: [ 
           createGiveawayEmbed( 
@@ -358,7 +358,7 @@ async function leaveGiveaway(
       error 
     ); 
   } 
- 
+
   await interaction.reply({ 
     content: 
       "You left the giveaway", 
@@ -367,31 +367,31 @@ async function leaveGiveaway(
     ], 
     ephemeral: true 
   }); 
- 
+
   return { success: true }; 
 } 
- 
+
 async function endGiveaway( 
   client, 
   giveawayId 
 ) { 
   const giveaway = 
     giveaways.get(giveawayId); 
- 
+
   if (!giveaway) return; 
- 
+
   if ( 
     giveaway.winners.length > 0 
   ) { 
     return; 
   } 
- 
+
   const entries = [ 
     ...giveaway.entries 
   ]; 
- 
+
   const winners = []; 
- 
+
   while ( 
     winners.length < 
       giveaway.winnerCount && 
@@ -402,7 +402,7 @@ async function endGiveaway(
         Math.random() * 
           entries.length 
       ); 
- 
+
     winners.push( 
       entries.splice( 
         randomIndex, 
@@ -410,18 +410,18 @@ async function endGiveaway(
       )[0] 
     ); 
   } 
- 
+
   giveaway.winners = winners; 
- 
+
   const channel = 
     client.channels.cache.get( 
       giveaway.channelId 
     ); 
- 
+
   if (!channel) return; 
- 
+
   let winnerText; 
- 
+
   if (winners.length === 0) { 
     winnerText = 
       `🎉 **${giveaway.prize}**\n\n` + 
@@ -431,11 +431,11 @@ async function endGiveaway(
       winners 
         .map(id => `<@${id}>`) 
         .join(" "); 
- 
+
     winnerText = 
       `🎉 ${winnerMentions} **you won ${giveaway.prize}!**`; 
   } 
- 
+
   const claimButton = 
     new ButtonBuilder() 
       .setCustomId( 
@@ -447,18 +447,18 @@ async function endGiveaway(
       .setStyle( 
         ButtonStyle.Success 
       ); 
- 
+
   const row = 
     new ActionRowBuilder() 
       .addComponents( 
         claimButton 
       ); 
- 
+
   await channel.send({ 
     content: winnerText, 
     components: [row] 
   }); 
- 
+
   // Keep the original giveaway message up (with the final embed and a 
   // disabled join button) instead of stripping its components away. 
   try { 
@@ -466,7 +466,7 @@ async function endGiveaway(
       await channel.messages.fetch( 
         giveaway.messageId 
       ); 
- 
+
     await originalMessage.edit({ 
       embeds: [ 
         createGiveawayEmbed(giveaway) 
@@ -482,14 +482,14 @@ async function endGiveaway(
     ); 
   } 
 } 
- 
+
 async function rerollGiveaway( 
   interaction, 
   giveawayId 
 ) { 
   const giveaway = 
     giveaways.get(giveawayId); 
- 
+
   if (!giveaway) { 
     return interaction.reply({ 
       content: 
@@ -497,7 +497,7 @@ async function rerollGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   if (giveaway.winners.length === 0) { 
     return interaction.reply({ 
       content: 
@@ -505,11 +505,11 @@ async function rerollGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   const entries = [ 
     ...giveaway.entries 
   ]; 
- 
+
   if (entries.length === 0) { 
     return interaction.reply({ 
       content: 
@@ -517,14 +517,14 @@ async function rerollGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   const winnerCount = Math.min( 
     giveaway.winnerCount, 
     entries.length 
   ); 
- 
+
   const newWinners = []; 
- 
+
   while ( 
     newWinners.length < winnerCount && 
     entries.length > 0 
@@ -533,25 +533,25 @@ async function rerollGiveaway(
       Math.floor( 
         Math.random() * entries.length 
       ); 
- 
+
     newWinners.push( 
       entries.splice(randomIndex, 1)[0] 
     ); 
   } 
- 
+
   giveaway.winners = newWinners; 
   giveaway.claimed = new Set(); 
- 
+
   const winnerMentions = 
     newWinners 
       .map(id => `<@${id}>`) 
       .join(" "); 
- 
+
   const channel = 
     interaction.client.channels.cache.get( 
       giveaway.channelId 
     ); 
- 
+
   if (channel) { 
     const claimButton = 
       new ButtonBuilder() 
@@ -560,24 +560,24 @@ async function rerollGiveaway(
         ) 
         .setLabel("Claim Now") 
         .setStyle(ButtonStyle.Success); 
- 
+
     const row = 
       new ActionRowBuilder().addComponents( 
         claimButton 
       ); 
- 
+
     await channel.send({ 
       content: 
         `🎉 New winner(s) for **${giveaway.prize}**: ${winnerMentions}!`, 
       components: [row] 
     }); 
- 
+
     try { 
       const originalMessage = 
         await channel.messages.fetch( 
           giveaway.messageId 
         ); 
- 
+
       await originalMessage.edit({ 
         embeds: [ 
           createGiveawayEmbed(giveaway) 
@@ -593,13 +593,13 @@ async function rerollGiveaway(
       ); 
     } 
   } 
- 
+
   return interaction.reply({ 
     content: `✅ Rerolled! New winner(s): ${winnerMentions}`, 
     ephemeral: true 
   }); 
 } 
- 
+
 async function claimGiveaway( 
   interaction, 
   giveawayId 
@@ -607,10 +607,10 @@ async function claimGiveaway(
   if (!interaction.deferred && !interaction.replied) { 
     await interaction.deferReply({ ephemeral: true }); 
   } 
- 
+
   const giveaway = 
     giveaways.get(giveawayId); 
- 
+
   if (!giveaway) { 
     return interaction.editReply({ 
       content: 
@@ -618,7 +618,7 @@ async function claimGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   if ( 
     !giveaway.winners.includes( 
       interaction.user.id 
@@ -630,7 +630,7 @@ async function claimGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   if ( 
     giveaway.claimed.has( 
       interaction.user.id 
@@ -642,10 +642,10 @@ async function claimGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   const guild = 
     interaction.guild; 
- 
+
   if (!guild) { 
     return interaction.editReply({ 
       content: 
@@ -653,7 +653,7 @@ async function claimGiveaway(
       ephemeral: true 
     }); 
   } 
- 
+
   const channelName = 
     `giveaway-claim-${interaction.user.username}` 
       .toLowerCase() 
@@ -666,10 +666,10 @@ async function claimGiveaway(
         "-" 
       ) 
       .slice(0, 90); 
- 
+
   const supportRoleId = 
     config.tickets?.support?.roleId; 
- 
+
   const permissions = [ 
     { 
       id: guild.roles.everyone.id, 
@@ -677,7 +677,7 @@ async function claimGiveaway(
         PermissionsBitField.Flags.ViewChannel 
       ] 
     }, 
- 
+
     { 
       id: interaction.user.id, 
       allow: [ 
@@ -686,7 +686,7 @@ async function claimGiveaway(
         PermissionsBitField.Flags.ReadMessageHistory 
       ] 
     }, 
- 
+
     { 
       id: giveaway.hostId, 
       allow: [ 
@@ -696,7 +696,7 @@ async function claimGiveaway(
       ] 
     } 
   ]; 
- 
+
   if (supportRoleId) { 
     permissions.push({ 
       id: supportRoleId, 
@@ -708,9 +708,9 @@ async function claimGiveaway(
       ] 
     }); 
   } 
- 
+
   let ticketChannel; 
- 
+
   try { 
     ticketChannel = 
       await guild.channels.create({ 
@@ -725,30 +725,30 @@ async function claimGiveaway(
       "Giveaway ticket error:", 
       error 
     ); 
- 
+
     return interaction.editReply({ 
       content: 
         "❌ I could not create the ticket. Please check my permissions.", 
       ephemeral: true 
     }); 
   } 
- 
+
   giveaway.claimed.add( 
     interaction.user.id 
   ); 
- 
+
   await interaction.editReply({ 
     content: 
       `✅ **Ticket created!**\nYour giveaway claim ticket has been created: ${ticketChannel}`, 
     ephemeral: true 
   }); 
- 
+
   const winnerMention = 
     `<@${interaction.user.id}>`; 
- 
+
   const hostMention = 
     `<@${giveaway.hostId}>`; 
- 
+
   const embed = 
     new EmbedBuilder() 
       .setColor(0x0000ff) 
@@ -780,7 +780,7 @@ async function claimGiveaway(
         text: 
           "Brankos community support" 
       }); 
- 
+
   const closeButton = 
     new ButtonBuilder() 
       .setCustomId( 
@@ -792,13 +792,13 @@ async function claimGiveaway(
       .setStyle( 
         ButtonStyle.Danger 
       ); 
- 
+
   const row = 
     new ActionRowBuilder() 
       .addComponents( 
         closeButton 
       ); 
- 
+
   await ticketChannel.send({ 
     content: 
       `${hostMention} ${winnerMention}`, 
@@ -806,7 +806,7 @@ async function claimGiveaway(
     components: [row] 
   }); 
 } 
- 
+
 function initGiveaways(client) { 
   // Giveaway state is kept in-memory only (no DB/file persistence), 
   // so there is nothing to restore on restart. This just confirms 
@@ -815,7 +815,7 @@ function initGiveaways(client) {
     `✅ Giveaway manager initialized (${giveaways.size} active giveaways).` 
   ); 
 } 
- 
+
 module.exports = { 
   initGiveaways, 
   startGiveaway, 
