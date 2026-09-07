@@ -3,6 +3,7 @@ module.exports = {
   leaveChannelId: "1438877108452593765",
   applicationChannelId: "1492509675520790598",
   transcriptChannelId: "1499507598691536896",
+  autoPingChannelId: "1441828230322454538",
 
   paidAd: {
     title: "💰 PAID ADVERTISEMENTS",
