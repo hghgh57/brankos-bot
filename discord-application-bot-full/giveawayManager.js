@@ -146,9 +146,11 @@ function scheduleRefresh(client, giveawayId) {
         .catch(() => null);
       if (!message) return;
 
+      const hasEnded = Date.now() >= giveaway.endTime;
+
       const components =
-        giveaway.winners.length > 0
-          ? []
+        hasEnded
+          ? [createJoinButton(giveaway, true)]
           : [createJoinButton(giveaway)];
 
       await message.edit({
@@ -209,7 +211,7 @@ function createGiveawayEmbed(giveaway) {
       "Click the button below to enter!\n\n" +
       `**Winners:** ${giveaway.winnerCount}\n` +
       `**Hosted by:** ${giveaway.host}\n` +
-      `**Ends:** ${formatEndsText(giveaway)}\n\n` +
+      `**Ends:** \`${formatEndsText(giveaway)}\`\n\n` +
       `<t:${endTimestamp}:F>`
     );
 
@@ -217,11 +219,12 @@ function createGiveawayEmbed(giveaway) {
   // stamp (bottom-right "Today at ..."), which does NOT count down.
 }
 
-function createJoinButton(giveaway) {
+function createJoinButton(giveaway, disabled = false) {
   const button = new ButtonBuilder()
     .setCustomId(`giveaway_join_${giveaway.id}`)
     .setLabel(`🎉 Join Giveaway (${giveaway.entries.size})`)
-    .setStyle(ButtonStyle.Primary);
+    .setStyle(ButtonStyle.Primary)
+    .setDisabled(disabled);
 
   return new ActionRowBuilder().addComponents(button);
 }
@@ -499,7 +502,7 @@ async function endGiveaway(
 
     await originalMessage.edit({
       embeds: [createGiveawayEmbed(giveaway)],
-      components: []
+      components: [createJoinButton(giveaway, true)]
     });
   } catch (error) {
     console.error(
