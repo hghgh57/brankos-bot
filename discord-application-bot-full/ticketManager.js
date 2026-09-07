@@ -7,7 +7,7 @@ const {
   ButtonStyle,
 } = require('discord.js');
 
-const config = require('../config.json');
+const config = require('../config.js');
 const { buildTranscript } = require('./transcript');
 const {
   buildApplicationEmbed,
@@ -79,6 +79,12 @@ function buildTicketControlRow(claimed = false) {
       .setLabel('Close')
       .setEmoji('🔒')
       .setStyle(ButtonStyle.Danger),
+
+    new ButtonBuilder()
+      .setCustomId('ticket_close_reason')
+      .setLabel('Close with Reason')
+      .setEmoji('📝')
+      .setStyle(ButtonStyle.Secondary)
   );
 }
 
