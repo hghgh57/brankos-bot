@@ -18,7 +18,7 @@ const {
   finalizeCloseTicket,
   cancelCloseTicket,
   buildTicketControlRow,
-} = require('../utils/ticketManager');
+} = require('../ticketManager');
 
 const {
   hasApplied,
