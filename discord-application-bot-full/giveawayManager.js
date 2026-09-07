@@ -289,10 +289,8 @@ async function endGiveaway(
 
   if (winners.length === 0) {
     winnerText =
-      "🎉 **Giveaway ended!**\n\n" +
-      `**Prize:** ${giveaway.prize}\n` +
-      "**Winners:** Nobody entered!\n" +
-      `**Hosted by:** <@${giveaway.hostId}>`;
+      `🎉 **${giveaway.prize}**\n\n` +
+      "❌ **No one entered this giveaway.**";
   } else {
     const winnerMentions =
       winners
@@ -300,10 +298,7 @@ async function endGiveaway(
         .join(" ");
 
     winnerText =
-      "🎉 **Giveaway ended!**\n\n" +
-      `**Prize:** ${giveaway.prize}\n` +
-      `**Winners:** ${winnerMentions}\n` +
-      `**Hosted by:** <@${giveaway.hostId}>`;
+      `🎉 ${winnerMentions} **you won ${giveaway.prize}!**`;
   }
 
   const claimButton =
@@ -312,7 +307,7 @@ async function endGiveaway(
         `giveaway_claim_${giveaway.id}`
       )
       .setLabel(
-        "Claim Giveaway"
+        "Claim Now"
       )
       .setStyle(
         ButtonStyle.Success
