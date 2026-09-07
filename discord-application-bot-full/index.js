@@ -15,24 +15,25 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages
   ],
+
   partials: [Partials.Channel]
 });
 
 client.commands = new Collection();
 
-// Make the client available to other files
-global.client = client;
-
-// Load commands
-const commandsPath = path.join(__dirname, "commands");
+const commandsPath = path.join(
+  __dirname,
+  "commands"
+);
 
 for (
   const file of fs
     .readdirSync(commandsPath)
-    .filter(file => file.endsWith(".js"))
+    .filter(f => f.endsWith(".js"))
 ) {
   const command = require(
     path.join(commandsPath, file)
@@ -44,13 +45,15 @@ for (
   );
 }
 
-// Load events
-const eventsPath = path.join(__dirname, "events");
+const eventsPath = path.join(
+  __dirname,
+  "events"
+);
 
 for (
   const file of fs
     .readdirSync(eventsPath)
-    .filter(file => file.endsWith(".js"))
+    .filter(f => f.endsWith(".js"))
 ) {
   const event = require(
     path.join(eventsPath, file)
@@ -71,5 +74,6 @@ for (
   }
 }
 
-// Login
+global.client = client;
+
 client.login(process.env.TOKEN);
