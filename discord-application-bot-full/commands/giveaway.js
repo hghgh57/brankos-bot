@@ -17,8 +17,8 @@ module.exports = {
 
     .addStringOption(option =>
       option
-        .setName("prize")
-        .setDescription("The giveaway prize.")
+        .setName("title")
+        .setDescription("The giveaway title.")
         .setRequired(true)
         .setMaxLength(256)
     )
@@ -57,8 +57,8 @@ module.exports = {
       return;
     }
 
-    const prize =
-      interaction.options.getString("prize");
+    const title =
+      interaction.options.getString("title");
 
     const winners =
       interaction.options.getInteger("winners");
@@ -71,7 +71,7 @@ module.exports = {
     try {
       result = await startGiveaway({
         interaction,
-        prize,
+        prize: title,
         winners,
         duration,
       });
@@ -94,7 +94,11 @@ module.exports = {
     }
 
     await interaction.reply({
-      content: "✅ Giveaway started!",
+      content:
+        `🎉 Giveaway created!\n` +
+        `**Prize:** ${title}\n` +
+        `**ID:** \`${result.giveawayId}\`\n\n` +
+        `Use \`/greroll giveaway_id:${result.giveawayId}\` to reroll. we will add the command soon`,
       ephemeral: true,
     });
   }
