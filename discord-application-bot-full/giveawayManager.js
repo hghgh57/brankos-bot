@@ -11,6 +11,25 @@ const config = require("./config");
 
 const giveaways = new Map();
 
+// Role that gets pinged (and given access) whenever someone claims a giveaway win.
+const CLAIM_PING_ROLE_ID = "1484216939466461376";
+
+// setTimeout only accepts a 32-bit signed int (~24.8 days) before it overflows
+// and fires immediately. Since giveaways can run up to 30 days, we chain
+// timeouts so long giveaways actually wait the full duration instead of
+// ending early / looking "stuck".
+const MAX_TIMEOUT_MS = 2147483647;
+
+function scheduleTimeout(callback, delay) {
+  if (delay > MAX_TIMEOUT_MS) {
+    return setTimeout(
+      () => scheduleTimeout(callback, delay - MAX_TIMEOUT_MS),
+      MAX_TIMEOUT_MS
+    );
+  }
+  return setTimeout(callback, delay);
+}
+
 function parseDuration(input) {
   const match = input
     .toLowerCase()
@@ -81,6 +100,38 @@ function createLeaveButton(giveaway) {
   return new ActionRowBuilder().addComponents(button);
 }
 
+// Discord's <t:...:R> tag DOES tick down on its own client-side, but if the
+// message never gets edited some clients cache/stop refreshing it and it
+// visually "sticks". We force a re-render every minute so it never freezes,
+// on top of the live client-side ticking.
+function startCountdownRefresh(client, giveawayId) {
+  const giveaway = giveaways.get(giveawayId);
+  if (!giveaway) return;
+
+  giveaway.refreshInterval = setInterval(async () => {
+    const g = giveaways.get(giveawayId);
+
+    if (!g || g.winners.length > 0 || Date.now() >= g.endTime) {
+      clearInterval(g?.refreshInterval);
+      return;
+    }
+
+    try {
+      const channel = client.channels.cache.get(g.channelId);
+      if (!channel) return;
+
+      const message = await channel.messages.fetch(g.messageId);
+
+      await message.edit({
+        embeds: [createGiveawayEmbed(g)],
+        components: [createJoinButton(g)]
+      });
+    } catch (error) {
+      console.error("Giveaway countdown refresh error:", error);
+    }
+  }, 60 * 1000);
+}
+
 async function startGiveaway({
   interaction,
   prize,
@@ -138,7 +189,10 @@ async function startGiveaway({
 
     entries: new Set(),
     winners: [],
-    claimed: new Set()
+    claimed: new Set(),
+
+    winnerMessageId: null,
+    refreshInterval: null
   };
 
   const giveawayMessage =
@@ -159,12 +213,14 @@ async function startGiveaway({
     giveaway
   );
 
-  setTimeout(() => {
+  scheduleTimeout(() => {
     endGiveaway(
       interaction.client,
       giveawayId
     ).catch(console.error);
   }, durationMs);
+
+  startCountdownRefresh(interaction.client, giveawayId);
 
   // DM the host their giveaway ID (needed for /greroll later).
   try {
@@ -374,6 +430,11 @@ async function endGiveaway(
     return;
   }
 
+  if (giveaway.refreshInterval) {
+    clearInterval(giveaway.refreshInterval);
+    giveaway.refreshInterval = null;
+  }
+
   const entries = [
     ...giveaway.entries
   ];
@@ -432,6 +493,7 @@ async function endGiveaway(
       .setLabel(
         "Claim Now"
       )
+      .setEmoji("🎁")
       .setStyle(
         ButtonStyle.Success
       );
@@ -442,10 +504,12 @@ async function endGiveaway(
         claimButton
       );
 
-  await channel.send({
+  const winnerMessage = await channel.send({
     content: winnerText,
     components: [row]
   });
+
+  giveaway.winnerMessageId = winnerMessage.id;
 
   // Keep the original giveaway message up (with the final embed and a
   // disabled join button) instead of stripping its components away.
@@ -547,6 +611,7 @@ async function rerollGiveaway(
           `giveaway_claim_${giveaway.id}`
         )
         .setLabel("Claim Now")
+        .setEmoji("🎁")
         .setStyle(ButtonStyle.Success);
 
     const row =
@@ -554,11 +619,13 @@ async function rerollGiveaway(
         claimButton
       );
 
-    await channel.send({
+    const winnerMessage = await channel.send({
       content:
         `🎉 New winner(s) for **${giveaway.prize}**: ${winnerMentions}!`,
       components: [row]
     });
+
+    giveaway.winnerMessageId = winnerMessage.id;
 
     try {
       const originalMessage =
@@ -697,6 +764,18 @@ async function claimGiveaway(
     });
   }
 
+  if (CLAIM_PING_ROLE_ID) {
+    permissions.push({
+      id: CLAIM_PING_ROLE_ID,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ReadMessageHistory,
+        PermissionsBitField.Flags.ManageMessages
+      ]
+    });
+  }
+
   let ticketChannel;
 
   try {
@@ -781,15 +860,29 @@ async function claimGiveaway(
         ButtonStyle.Danger
       );
 
+  const rowComponents = [closeButton];
+
+  // Let the winner/host jump straight back to the winner announcement message.
+  if (giveaway.winnerMessageId) {
+    const jumpButton = new ButtonBuilder()
+      .setLabel("Jump to Win")
+      .setStyle(ButtonStyle.Link)
+      .setURL(
+        `https://discord.com/channels/${guild.id}/${giveaway.channelId}/${giveaway.winnerMessageId}`
+      );
+
+    rowComponents.push(jumpButton);
+  }
+
   const row =
     new ActionRowBuilder()
       .addComponents(
-        closeButton
+        rowComponents
       );
 
   await ticketChannel.send({
     content:
-      `${hostMention} ${winnerMention}`,
+      `<@&${CLAIM_PING_ROLE_ID}> ${hostMention} ${winnerMention}`,
     embeds: [embed],
     components: [row]
   });
