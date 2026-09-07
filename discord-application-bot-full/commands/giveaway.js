@@ -4,34 +4,29 @@ const {
 } = require("discord.js");
 
 const {
-  startGiveaway
+  createGiveaway
 } = require("../giveawayManager");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("giveaway")
-    .setDescription(
-      "Start a giveaway."
-    )
+    .setName("gcreate")
+    .setDescription("Start a giveaway.")
     .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageMessages
+      PermissionFlagsBits.ManageGuild
     )
 
     .addStringOption(option =>
       option
-        .setName("prize")
-        .setDescription(
-          "What are you giving away?"
-        )
+        .setName("title")
+        .setDescription("The giveaway title.")
         .setRequired(true)
+        .setMaxLength(256)
     )
 
     .addIntegerOption(option =>
       option
         .setName("winners")
-        .setDescription(
-          "Number of winners"
-        )
+        .setDescription("How many winners.")
         .setRequired(true)
         .setMinValue(1)
         .setMaxValue(100)
@@ -40,48 +35,26 @@ module.exports = {
     .addStringOption(option =>
       option
         .setName("duration")
-        .setDescription(
-          "Example: 10m, 1h, 7d"
-        )
+        .setDescription("Examples: 7d, 24h, 30m, 1h")
         .setRequired(true)
+        .setMaxLength(20)
     ),
 
   async execute(interaction) {
-    const prize =
-      interaction.options.getString(
-        "prize"
-      );
+    const title =
+      interaction.options.getString("title");
 
     const winners =
-      interaction.options.getInteger(
-        "winners"
-      );
+      interaction.options.getInteger("winners");
 
     const duration =
-      interaction.options.getString(
-        "duration"
-      );
+      interaction.options.getString("duration");
 
-    const result =
-      await startGiveaway({
-        interaction,
-        prize,
-        winners,
-        duration
-      });
-
-    if (!result.success) {
-      return interaction.reply({
-        content:
-          `❌ ${result.error}`,
-        ephemeral: true
-      });
-    }
-
-    await interaction.reply({
-      content:
-        "✅ Giveaway created!",
-      ephemeral: true
-    });
+    await createGiveaway(
+      interaction,
+      title,
+      winners,
+      duration
+    );
   }
 };
