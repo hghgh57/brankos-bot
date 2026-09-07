@@ -32,7 +32,7 @@ module.exports = {
     if (!channel) return;
 
     await channel.send(
-      `Hey ${member}, 𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐭𝐨 ${member.guild.name}! 🎉`
+      `𝐇𝐞𝐲 ${member}, 𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐭𝐨 ${member.guild.name}! 🎉`
     ).catch(console.error);
   }
 };
