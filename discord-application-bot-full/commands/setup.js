@@ -21,26 +21,25 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(BLUE)
       .setDescription(
-`__**Staff Application requirements:**__
-
-• at least 14 years old
-• able to do **10+ partnerships a week.**
-• able to do **10M+ in giveaway** in a week
-• able to be really active in chat
-• must be **experienced**
-• must react daily to reactivity check
-• must be kind
-• must have <@&COAL_MINER_ROLE_ID>
-
-__**Partner Manager requirements**__
-
-• at least 14 years old
-• you **must** be able to find other servers who we can partner with.
-• able to do **10+ partnerships a week.**
-• you **must** be experienced
-• **Follow** our Partner requirements
-• We **do not** accept waves
-• You can only do **private wave / solo partners only!**`
+`__**staff application requirements:**__
+ 
+- at least 14 years old 
+- able to do **10m+ in giveaway** in a week 
+- able to do **10+** partnerships a **week** 
+- able to be really active in chat  
+- must react daily to reactivity check 
+- must be kind 
+- must have <@&1500496895586336808> 
+ 
+__**Partner manager requirements:**__ 
+- at least 14 years old 
+- you __must__ be able to find other servers who we can partner with. 
+- able to do **10+** partnerships a **week** 
+- you __must__ be experienced  
+- follow are partner requirements  
+- we __**do not**__ accept waves 
+- you can only do **private waves / solo partners __only__! 
+- you must react daily to reactivity check`
       );
 
     const row = new ActionRowBuilder().addComponents(
