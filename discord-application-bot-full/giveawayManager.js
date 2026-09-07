@@ -88,12 +88,13 @@ function createGiveawayEmbed(giveaway) {
       ? `**Winner(s):** ${giveaway.winners.map(id => `<@${id}>`).join(" ")}`
       : `**Winners:** ${giveaway.winnerCount}`,
     `**Hosted by:** ${giveaway.host}`,
-    // Date/time now lives right on the "Ends" line instead of as a
-    // separate trailing line, so the countdown and the actual
-    // date+time it corresponds to are shown together.
+    // Wrap just the time value in backticks so Discord renders it as a
+    // small boxed/monospace chip, e.g. "Ends: `10 seconds`".
     hasWinners
-      ? `**Ends:** <t:${endTimestamp}:R> (<t:${endTimestamp}:F>)`
-      : `**Ends:** ${timeLeft} (<t:${endTimestamp}:F>)`
+      ? `**Ends:** <t:${endTimestamp}:R>`
+      : `**Ends:** \`${timeLeft}\``,
+    "",
+    `<t:${endTimestamp}:F>`
   ];
 
   return new EmbedBuilder()
