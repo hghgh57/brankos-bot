@@ -79,12 +79,6 @@ function buildTicketControlRow(claimed = false) {
       .setLabel('Close')
       .setEmoji('🔒')
       .setStyle(ButtonStyle.Danger),
-
-    new ButtonBuilder()
-      .setCustomId('ticket_close_reason')
-      .setLabel('Close with Reason')
-      .setEmoji('📝')
-      .setStyle(ButtonStyle.Secondary)
   );
 }
 
