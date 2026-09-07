@@ -3,26 +3,27 @@ const {
   PermissionFlagsBits
 } = require("discord.js");
 
-const {
-  startGiveaway
-} = require("../giveawayManager");
+const { startGiveaway } = require("../giveawayManager");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("gcreate")
     .setDescription("Start a giveaway.")
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild
-    )
-
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption(option =>
       option
         .setName("title")
-        .setDescription("The giveaway title.")
-        .setRequired(true)
+        .setDescription("The giveaway prize.")
+        .setRequired(false)
         .setMaxLength(256)
     )
-
+    .addStringOption(option =>
+      option
+        .setName("prize")
+        .setDescription("The giveaway prize.")
+        .setRequired(false)
+        .setMaxLength(256)
+    )
     .addIntegerOption(option =>
       option
         .setName("winners")
@@ -31,7 +32,6 @@ module.exports = {
         .setMinValue(1)
         .setMaxValue(100)
     )
-
     .addStringOption(option =>
       option
         .setName("duration")
@@ -42,64 +42,61 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.inGuild()) {
-      await interaction.reply({
+      return interaction.reply({
         content: "❌ This command can only be used in a server.",
-        ephemeral: true,
+        ephemeral: true
       });
-      return;
     }
 
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-      await interaction.reply({
+      return interaction.reply({
         content: "❌ You need the Manage Server permission to use this command.",
-        ephemeral: true,
+        ephemeral: true
       });
-      return;
     }
 
-    const title =
-      interaction.options.getString("title");
+    const title = interaction.options.getString("title");
+    const prizeOption = interaction.options.getString("prize");
+    const prize = (prizeOption || title || "").trim();
 
-    const winners =
-      interaction.options.getInteger("winners");
+    const winners = interaction.options.getInteger("winners", true);
+    const duration = interaction.options.getString("duration", true);
 
-    const duration =
-      interaction.options.getString("duration");
+    if (!prize) {
+      return interaction.reply({
+        content: "❌ Please provide a giveaway prize.",
+        ephemeral: true
+      });
+    }
 
     let result;
 
     try {
       result = await startGiveaway({
         interaction,
-        prize: title,
+        prize,
         winners,
-        duration,
+        duration
       });
     } catch (error) {
       console.error("/gcreate error:", error);
-
-      await interaction.reply({
+      return interaction.reply({
         content: "❌ Failed to start the giveaway. Check the bot console for the error.",
-        ephemeral: true,
+        ephemeral: true
       });
-      return;
     }
 
     if (!result.success) {
-      await interaction.reply({
+      return interaction.reply({
         content: `❌ ${result.error}`,
-        ephemeral: true,
+        ephemeral: true
       });
-      return;
     }
 
-    await interaction.reply({
-      content:
-        `🎉 Giveaway created!\n` +
-        `**Prize:** ${title}\n` +
-        `**ID:** \`${result.giveawayId}\`\n\n` +
-        `Use \`/greroll giveaway_id:${result.giveawayId}\` to reroll. we will add the command soon`,
-      ephemeral: true,
+    return interaction.reply({
+      content: `✅ Giveaway started!
+**Giveaway ID:** \`${result.giveawayId}\``,
+      ephemeral: true
     });
   }
 };
