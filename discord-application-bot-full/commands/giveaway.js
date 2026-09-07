@@ -17,8 +17,8 @@ module.exports = {
 
     .addStringOption(option =>
       option
-        .setName("Prize")
-        .setDescription("The giveaway Prize.")
+        .setName("prize")
+        .setDescription("The giveaway prize.")
         .setRequired(true)
         .setMaxLength(256)
     )
@@ -57,8 +57,8 @@ module.exports = {
       return;
     }
 
-    const title =
-      interaction.options.getString("title");
+    const prize =
+      interaction.options.getString("prize");
 
     const winners =
       interaction.options.getInteger("winners");
@@ -71,7 +71,7 @@ module.exports = {
     try {
       result = await startGiveaway({
         interaction,
-        prize: title,
+        prize,
         winners,
         duration,
       });
