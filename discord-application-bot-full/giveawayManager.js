@@ -146,12 +146,15 @@ function scheduleRefresh(client, giveawayId) {
         .catch(() => null);
       if (!message) return;
 
-      const hasEnded = Date.now() >= giveaway.endTime;
+      const hasEnded =
+        Date.now() >= giveaway.endTime;
 
-      const components =
-        hasEnded
-          ? [createJoinButton(giveaway, true)]
-          : [createJoinButton(giveaway)];
+      const components = [
+        createJoinButton(
+          giveaway,
+          hasEnded || giveaway.winners.length > 0
+        )
+      ];
 
       await message.edit({
         embeds: [createGiveawayEmbed(giveaway)],
@@ -318,8 +321,16 @@ async function startGiveaway({
 
   scheduleRefresh(interaction.client, giveawayId);
 
+  await interaction.user.send(
+    `🎉 Giveaway created!\n` +
+    `**Prize:** ${giveaway.prize}\n` +
+    `**ID:** \`${giveawayId}\`\n\n` +
+    `Use \`/greroll giveaway_id:${giveawayId}\` to reroll. we will add the command soon`
+  ).catch(() => {});
+
   return {
-    success: true
+    success: true,
+    giveawayId
   };
 }
 
@@ -327,79 +338,117 @@ async function joinGiveaway(
   interaction,
   giveawayId
 ) {
-  const giveaway =
-    giveaways.get(giveawayId);
+  const giveaway = giveaways.get(giveawayId);
 
   if (!giveaway) {
     return interaction.reply({
-      content:
-        "❌ This giveaway no longer exists.",
+      content: "❌ This giveaway no longer exists.",
       ephemeral: true
     });
   }
 
-  if (
-    Date.now() >=
-    giveaway.endTime
-  ) {
+  if (Date.now() >= giveaway.endTime) {
     return interaction.reply({
-      content:
-        "❌ This giveaway has already ended.",
+      content: "❌ This giveaway has already ended.",
       ephemeral: true
     });
   }
 
-  if (
-    giveaway.entries.has(
-      interaction.user.id
-    )
-  ) {
-    return interaction.reply({
-      content:
-        "❌ You are already entered in this giveaway.",
-      ephemeral: true
-    });
-  }
-
-  giveaway.entries.add(
-    interaction.user.id
+  const leaveRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`giveaway_leave_${giveawayId}`)
+      .setLabel("Leave Giveaway")
+      .setStyle(ButtonStyle.Danger)
   );
 
+  if (giveaway.entries.has(interaction.user.id)) {
+    return interaction.reply({
+      content: "You already joined the giveaway!",
+      components: [leaveRow],
+      ephemeral: true
+    });
+  }
+
+  giveaway.entries.add(interaction.user.id);
   saveGiveaways();
 
   try {
-    const channel =
-      interaction.client.channels.cache.get(
-        giveaway.channelId
-      );
+    const channel = interaction.client.channels.cache.get(
+      giveaway.channelId
+    );
 
     if (channel) {
-      const message =
-        await channel.messages.fetch(
-          giveaway.messageId
-        );
+      const message = await channel.messages.fetch(
+        giveaway.messageId
+      );
 
       await message.edit({
-        embeds: [
-          createGiveawayEmbed(
-            giveaway
-          )
-        ],
-        components: [
-          createJoinButton(giveaway)
-        ]
+        embeds: [createGiveawayEmbed(giveaway)],
+        components: [createJoinButton(giveaway)]
       });
     }
   } catch (error) {
-    console.error(
-      "Giveaway update error:",
-      error
-    );
+    console.error("Giveaway update error:", error);
   }
 
   await interaction.reply({
-    content:
-      "🎉 You have entered the giveaway!",
+    content: "🎉 You joined the giveaway!",
+    components: [leaveRow],
+    ephemeral: true
+  });
+}
+
+async function leaveGiveaway(
+  interaction,
+  giveawayId
+) {
+  const giveaway = giveaways.get(giveawayId);
+
+  if (!giveaway) {
+    return interaction.reply({
+      content: "❌ This giveaway no longer exists.",
+      ephemeral: true
+    });
+  }
+
+  if (Date.now() >= giveaway.endTime) {
+    return interaction.reply({
+      content: "❌ This giveaway has already ended.",
+      ephemeral: true
+    });
+  }
+
+  if (!giveaway.entries.has(interaction.user.id)) {
+    return interaction.reply({
+      content: "You are not entered in this giveaway.",
+      ephemeral: true
+    });
+  }
+
+  giveaway.entries.delete(interaction.user.id);
+  saveGiveaways();
+
+  try {
+    const channel = interaction.client.channels.cache.get(
+      giveaway.channelId
+    );
+
+    if (channel) {
+      const message = await channel.messages.fetch(
+        giveaway.messageId
+      );
+
+      await message.edit({
+        embeds: [createGiveawayEmbed(giveaway)],
+        components: [createJoinButton(giveaway)]
+      });
+    }
+  } catch (error) {
+    console.error("Giveaway update error:", error);
+  }
+
+  return interaction.reply({
+    content: "You left the giveaway.",
     ephemeral: true
   });
 }
@@ -502,7 +551,9 @@ async function endGiveaway(
 
     await originalMessage.edit({
       embeds: [createGiveawayEmbed(giveaway)],
-      components: [createJoinButton(giveaway, true)]
+      components: [
+        createJoinButton(giveaway, true)
+      ]
     });
   } catch (error) {
     console.error(
@@ -721,6 +772,7 @@ async function claimGiveaway(
 module.exports = {
   startGiveaway,
   joinGiveaway,
+  leaveGiveaway,
   claimGiveaway,
   initGiveaways
 };
