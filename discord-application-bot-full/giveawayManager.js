@@ -88,11 +88,12 @@ function createGiveawayEmbed(giveaway) {
       ? `**Winner(s):** ${giveaway.winners.map(id => `<@${id}>`).join(" ")}`
       : `**Winners:** ${giveaway.winnerCount}`,
     `**Hosted by:** ${giveaway.host}`,
+    // Date/time now lives right on the "Ends" line instead of as a
+    // separate trailing line, so the countdown and the actual
+    // date+time it corresponds to are shown together.
     hasWinners
-      ? `**Ends:** <t:${endTimestamp}:R>`
-      : `**Ends:** ${timeLeft}`,
-    "",
-    `<t:${endTimestamp}:F>`
+      ? `**Ends:** <t:${endTimestamp}:R> (<t:${endTimestamp}:F>)`
+      : `**Ends:** ${timeLeft} (<t:${endTimestamp}:F>)`
   ];
 
   return new EmbedBuilder()
@@ -104,7 +105,7 @@ function createGiveawayEmbed(giveaway) {
 function createJoinButton(giveaway, disabled = false) {
   const button = new ButtonBuilder()
     .setCustomId(`giveaway_join_${giveaway.id}`)
-    .setLabel(` Join Giveaway (${giveaway.entries.size})`)
+    .setLabel(` 🎉 Join Giveaway (${giveaway.entries.size})`)
     .setStyle(ButtonStyle.Primary)
     .setDisabled(disabled);
 
