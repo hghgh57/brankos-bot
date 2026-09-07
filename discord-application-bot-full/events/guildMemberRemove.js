@@ -7,30 +7,71 @@ module.exports = {
 
   async execute(member) {
     console.log(
-      `🚪 MEMBER LEAVE EVENT: ${member.user.tag} left ${member.guild.name}`
+      `🚪 MEMBER LEAVE EVENT FIRED: ${member.user.tag} (${member.id}) left ${member.guild.name} (${member.guild.id})`
     );
 
     try {
-      const channel = await member.guild.channels.fetch(
-        config.leaveChannelId
-      );
+      const channelId = config.leaveChannelId;
 
-      if (!channel) {
-        console.log("❌ Leave channel not found.");
+      if (!channelId) {
+        console.log(
+          "❌ No leaveChannelId is configured in config.js"
+        );
         return;
       }
 
-      await channel.send(
-        `${member.user.username} Has Left Us... We Hope You Come Back Soon! 😢❤️`
+      console.log(
+        `🔎 Looking for leave channel: ${channelId}`
       );
 
-      console.log("✅ Leave message sent!");
+      const channel =
+        await member.guild.channels
+          .fetch(channelId)
+          .catch(error => {
+            console.error(
+              "❌ Could not fetch leave channel:",
+              error
+            );
+
+            return null;
+          });
+
+      if (!channel) {
+        console.log(
+          `❌ Leave channel ${channelId} was not found in ${member.guild.name}.`
+        );
+        return;
+      }
+
+      if (!channel.isTextBased()) {
+        console.log(
+          `❌ Leave channel ${channelId} is not a text-based channel.`
+        );
+        return;
+      }
+
+      console.log(
+        `✅ Leave channel found: ${channel.name}`
+      );
+
+      const username =
+        member.user.username;
+
+      await channel.send(
+        `${username} Has Left Us... We Hope You Come Back Soon! 😢❤️`
+      );
+
+      console.log(
+        `✅ Leave message sent for ${username}!`
+      );
 
       // Update member count
-      const totalMembers = member.client.guilds.cache.reduce(
-        (total, guild) => total + guild.memberCount,
-        0
-      );
+      const totalMembers =
+        member.client.guilds.cache.reduce(
+          (total, guild) =>
+            total + guild.memberCount,
+          0
+        );
 
       member.client.user.setPresence({
         activities: [
@@ -42,8 +83,15 @@ module.exports = {
         status: "online"
       });
 
+      console.log(
+        `👀 Status updated: Watching over ${totalMembers} members`
+      );
+
     } catch (error) {
-      console.error("❌ Leave event error:", error);
+      console.error(
+        "❌ LEAVE EVENT ERROR:",
+        error
+      );
     }
   }
 };
