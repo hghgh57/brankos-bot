@@ -200,7 +200,7 @@ async function joinGiveaway(
   ) {
     return interaction.reply({
       content:
-        "You already joined the giveaway",
+        "❌ You are already in this giveaway.",
       components: [
         createLeaveButton(giveaway)
       ],
@@ -244,7 +244,7 @@ async function joinGiveaway(
 
   await interaction.reply({
     content:
-      "You joined the giveaway",
+      "🎉 You joined this giveaway! Do you want to leave?",
     components: [
       createLeaveButton(giveaway)
     ],
