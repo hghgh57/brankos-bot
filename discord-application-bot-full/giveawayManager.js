@@ -553,9 +553,10 @@ async function claimGiveaway(
     components: [row]
   });
 }
-
 module.exports = {
   startGiveaway,
   joinGiveaway,
-  claimGiveaway
+  leaveGiveaway,
+  claimGiveaway,
+  initGiveaways
 };
