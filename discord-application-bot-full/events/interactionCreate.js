@@ -272,66 +272,6 @@ module.exports = {
         return;
       }
 
-      /* =====================================================
-         GIVEAWAY BUTTONS
-      ===================================================== */
-
-      if (interaction.isButton()) {
-        if (interaction.customId.startsWith('giveaway_claim_')) {
-          const giveawayId = interaction.customId.slice('giveaway_claim_'.length);
-
-          if (!giveawayId) {
-            return interaction.reply({
-              content: '❌ Invalid giveaway.',
-              ephemeral: true,
-            });
-          }
-
-          await rootGiveawayManager.claimGiveaway(
-            interaction,
-            giveawayId
-          );
-
-          return;
-        }
-
-        if (interaction.customId.startsWith('giveaway_join_')) {
-          const giveawayId = interaction.customId.slice('giveaway_join_'.length);
-
-          if (!giveawayId) {
-            return interaction.reply({
-              content: '❌ Invalid giveaway.',
-              ephemeral: true,
-            });
-          }
-
-          await rootGiveawayManager.joinGiveaway(
-            interaction,
-            giveawayId
-          );
-
-          return;
-        }
-
-        if (interaction.customId.startsWith('giveaway_leave_')) {
-          const giveawayId = interaction.customId.slice('giveaway_leave_'.length);
-
-          if (!giveawayId) {
-            return interaction.reply({
-              content: '❌ Invalid giveaway.',
-              ephemeral: true,
-            });
-          }
-
-          await rootGiveawayManager.leaveGiveaway(
-            interaction,
-            giveawayId
-          );
-
-          return;
-        }
-      }
-
 
       /* =====================================================
          NORMAL / SERVICE TICKET DROPDOWNS
@@ -394,6 +334,7 @@ module.exports = {
 
         /* =================================================
            DETERMINE WHICH PANEL WAS USED
+        ================================================= */
 
         const isServicePanel =
           interaction.customId ===
@@ -404,10 +345,11 @@ module.exports = {
 
         /* =================================================
            RESET PANEL IMMEDIATELY
-           
+
            This is important because Discord select menus
            visually keep the selected value until the
            original message is edited.
+        ================================================= */
 
         if (isServicePanel) {
 
@@ -425,6 +367,7 @@ module.exports = {
 
         /* =================================================
            CATEGORY HAS QUESTIONS
+        ================================================= */
 
         if (
           Array.isArray(category.questions) &&
@@ -441,6 +384,7 @@ module.exports = {
 
         /* =================================================
            CATEGORY HAS NO QUESTIONS
+        ================================================= */
 
         await createTicket(
           interaction,
@@ -451,6 +395,11 @@ module.exports = {
       }
 
 
+      /* =====================================================
+         BUTTONS
+      ===================================================== */
+
+      if (interaction.isButton()) {
 
         if (
           interaction.customId.startsWith('giveaway_claim_')
@@ -479,6 +428,7 @@ module.exports = {
 
         /* =================================================
            GIVEAWAY JOIN / LEAVE
+        ================================================= */
 
         if (
           interaction.customId.startsWith('giveaway_join_') ||
@@ -503,15 +453,10 @@ module.exports = {
           }
 
           if (isLeave) {
-            const result =
-              await rootGiveawayManager.leaveGiveaway(
-                interaction,
-                giveawayId
-              );
-
-            if (result?.success === false) {
-              return;
-            }
+            await rootGiveawayManager.leaveGiveaway(
+              interaction,
+              giveawayId
+            );
 
             return;
           }
@@ -526,6 +471,7 @@ module.exports = {
 
         /* =================================================
            REACTION ROLES
+        ================================================= */
 
         if (
           interaction.customId.startsWith(
@@ -636,6 +582,7 @@ module.exports = {
 
         /* =================================================
            TICKET CLAIM
+        ================================================= */
 
         if (
           interaction.customId ===
@@ -652,6 +599,7 @@ module.exports = {
 
         /* =================================================
            TICKET CLOSE
+        ================================================= */
 
         if (
           interaction.customId ===
@@ -668,6 +616,7 @@ module.exports = {
 
         /* =================================================
            TICKET CLOSE CONFIRMATION
+        ================================================= */
 
         if (interaction.customId === 'ticket_close_confirm') {
           await finalizeCloseTicket(interaction);
@@ -682,6 +631,7 @@ module.exports = {
 
         /* =================================================
            CLOSE WITH REASON
+        ================================================= */
 
         if (
           interaction.customId ===
@@ -727,6 +677,8 @@ module.exports = {
           return;
         }
 
+      }
+
 
       /* =====================================================
          CLOSE REASON MODAL
@@ -751,9 +703,6 @@ module.exports = {
         );
 
         return;
-      }
-
-
       }
 
     } catch (err) {
