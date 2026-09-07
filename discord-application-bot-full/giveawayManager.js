@@ -200,7 +200,7 @@ async function joinGiveaway(
   ) {
     return interaction.reply({
       content:
-        "❌ You are already in this giveaway.",
+        "You already joined the giveaway",
       components: [
         createLeaveButton(giveaway)
       ],
@@ -244,7 +244,7 @@ async function joinGiveaway(
 
   await interaction.reply({
     content:
-      "🎉 You joined this giveaway! Do you want to leave?",
+      "You joined the giveaway",
     components: [
       createLeaveButton(giveaway)
     ],
@@ -651,7 +651,17 @@ async function claimGiveaway(
   });
 }
 
+function initGiveaways(client) {
+  // Giveaway state is kept in-memory only (no DB/file persistence),
+  // so there is nothing to restore on restart. This just confirms
+  // the manager is ready once the client is logged in.
+  console.log(
+    `✅ Giveaway manager initialized (${giveaways.size} active giveaways).`
+  );
+}
+
 module.exports = {
+  initGiveaways,
   startGiveaway,
   joinGiveaway,
   leaveGiveaway,
