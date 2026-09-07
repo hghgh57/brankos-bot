@@ -4,7 +4,7 @@ const {
 } = require("discord.js");
 
 const {
-  createGiveaway
+  startGiveaway
 } = require("../giveawayManager");
 
 module.exports = {
@@ -41,6 +41,22 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    if (!interaction.inGuild()) {
+      await interaction.reply({
+        content: "❌ This command can only be used in a server.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+      await interaction.reply({
+        content: "❌ You need the Manage Server permission to use this command.",
+        ephemeral: true,
+      });
+      return;
+    }
+
     const title =
       interaction.options.getString("title");
 
@@ -50,11 +66,36 @@ module.exports = {
     const duration =
       interaction.options.getString("duration");
 
-    await createGiveaway(
-      interaction,
-      title,
-      winners,
-      duration
-    );
+    let result;
+
+    try {
+      result = await startGiveaway({
+        interaction,
+        prize: title,
+        winners,
+        duration,
+      });
+    } catch (error) {
+      console.error("/gcreate error:", error);
+
+      await interaction.reply({
+        content: "❌ Failed to start the giveaway. Check the bot console for the error.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (!result.success) {
+      await interaction.reply({
+        content: `❌ ${result.error}`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    await interaction.reply({
+      content: "✅ Giveaway started!",
+      ephemeral: true,
+    });
   }
 };
