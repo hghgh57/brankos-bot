@@ -33,19 +33,34 @@ function isYesNoQuestion(question) {
   );
 }
 
-async function startApplication(
-  interaction,
-  type
-) {
-  const application =
-    config.applications[type];
+async function startApplication(interaction, type) {
+  const application = config.applications[type];
 
   if (!application) {
     return interaction.reply({
-      content:
-        "❌ This application does not exist.",
+      content: "❌ This application does not exist.",
       ephemeral: true
     });
+  }
+
+  // Staff applications require Coal Miner
+  if (type === "staff") {
+    const coalMinerRoleId = "1500496895586336808";
+
+    const member = await interaction.guild.members
+      .fetch(interaction.user.id)
+      .catch(() => null);
+
+    if (
+      !member ||
+      !member.roles.cache.has(coalMinerRoleId)
+    ) {
+      return interaction.reply({
+        content:
+          "❌ You must have the @Coal Miner [5] role to apply for Staff.",
+        ephemeral: true
+      });
+    }
   }
 
   await interaction.reply({
@@ -71,8 +86,7 @@ async function startApplication(
       i < application.questions.length;
       i++
     ) {
-      const question =
-        application.questions[i];
+      const question = application.questions[i];
 
       const questionText =
         getQuestionText(question);
@@ -95,7 +109,6 @@ async function startApplication(
           await dm.awaitMessages({
             filter: message =>
               message.author.id === user.id,
-
             max: 1,
             time: 300000
           }).catch(() => null);
@@ -107,24 +120,19 @@ async function startApplication(
           await dm.send(
             "Your application timed out. Please start again."
           );
-
           return;
         }
 
-        const message =
-          collected.first();
-
+        const message = collected.first();
         const answer =
           message.content.trim();
 
         if (
-          answer.toLowerCase() ===
-          "cancel"
+          answer.toLowerCase() === "cancel"
         ) {
           await dm.send(
             "Your application has been cancelled."
           );
-
           return;
         }
 
@@ -139,16 +147,11 @@ async function startApplication(
             await dm.send(
               "Please answer with yes or no."
             );
-
             continue;
           }
 
-          answers.push(answer);
-
-          await dm.send(
-            lower === "yes"
-              ? "Yes"
-              : "No"
+          answers.push(
+            lower === "yes" ? "Yes" : "No"
           );
 
           answered = true;
@@ -159,10 +162,8 @@ async function startApplication(
       }
     }
 
-    let applicationText =
-      `${application.name}\n` +
-      `Applicant: ${user.tag}\n` +
-      `User ID: ${user.id}\n\n`;
+    // Build application text
+    let applicationText = "";
 
     for (
       let i = 0;
@@ -170,30 +171,71 @@ async function startApplication(
       i++
     ) {
       applicationText +=
-        `Question ${i + 1}: ` +
-        `${getQuestionText(
-          application.questions[i]
-        )}\n`;
-
-      applicationText +=
-        `Answer: ${
-          answers[i] || "No answer"
-        }\n\n`;
+        `**Question ${i + 1}:**\n` +
+        `${getQuestionText(application.questions[i])}\n` +
+        `**Answer:**\n` +
+        `${answers[i] || "No answer"}\n\n`;
     }
 
+    // Send application to application channel
     if (config.applicationChannelId) {
       const channel =
-        interaction.client.channels.cache.get(
-          config.applicationChannelId
-        );
+        await interaction.client.channels
+          .fetch(config.applicationChannelId)
+          .catch(() => null);
 
       if (
         channel &&
         channel.isTextBased()
       ) {
-        await channel.send(
-          applicationText
-        );
+        const {
+          EmbedBuilder,
+          ActionRowBuilder,
+          ButtonBuilder,
+          ButtonStyle
+        } = require("discord.js");
+
+        const embed =
+          new EmbedBuilder()
+            .setColor(0x0000FF)
+            .setTitle(
+              application.name
+            )
+            .setDescription(
+              `Applicant: ${user}\n\n` +
+              applicationText
+            )
+            .setFooter({
+              text: `User ID: ${user.id}`
+            })
+            .setTimestamp();
+
+        const row =
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(
+                `application_accept_${type}_${user.id}`
+              )
+              .setLabel("Accept")
+              .setStyle(
+                ButtonStyle.Success
+              ),
+
+            new ButtonBuilder()
+              .setCustomId(
+                `application_deny_${type}_${user.id}`
+              )
+              .setLabel("Deny")
+              .setStyle(
+                ButtonStyle.Danger
+              )
+          );
+
+        await channel.send({
+          content: `${user}`,
+          embeds: [embed],
+          components: [row]
+        });
       }
     }
 
@@ -219,13 +261,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      /*
-       * SLASH COMMANDS
-       */
-
-      if (
-        interaction.isChatInputCommand()
-      ) {
+      if (interaction.isChatInputCommand()) {
         const command =
           interaction.client.commands.get(
             interaction.commandName
@@ -233,25 +269,15 @@ module.exports = {
 
         if (!command) return;
 
-        await command.execute(
-          interaction
-        );
-
+        await command.execute(interaction);
         return;
       }
-
-      /*
-       * BUTTONS
-       */
 
       if (!interaction.isButton()) {
         return;
       }
 
-      /*
-       * GIVEAWAY JOIN
-       */
-
+      // Giveaway join
       if (
         interaction.customId.startsWith(
           "giveaway_join_"
@@ -271,10 +297,7 @@ module.exports = {
         return;
       }
 
-      /*
-       * GIVEAWAY CLAIM
-       */
-
+      // Giveaway claim
       if (
         interaction.customId.startsWith(
           "giveaway_claim_"
@@ -294,25 +317,16 @@ module.exports = {
         return;
       }
 
-      /*
-       * CLOSE TICKET
-       */
-
+      // Ticket close
       if (
         interaction.customId ===
         "ticket_close"
       ) {
-        await closeTicket(
-          interaction
-        );
-
+        await closeTicket(interaction);
         return;
       }
 
-      /*
-       * SUPPORT TICKET
-       */
-
+      // Tickets
       if (
         interaction.customId ===
         "ticket_support"
@@ -321,13 +335,8 @@ module.exports = {
           interaction,
           "support"
         );
-
         return;
       }
-
-      /*
-       * BUG TICKET
-       */
 
       if (
         interaction.customId ===
@@ -337,13 +346,8 @@ module.exports = {
           interaction,
           "bug"
         );
-
         return;
       }
-
-      /*
-       * PARTNER TICKET
-       */
 
       if (
         interaction.customId ===
@@ -353,13 +357,8 @@ module.exports = {
           interaction,
           "partner"
         );
-
         return;
       }
-
-      /*
-       * SPAWNERS TICKET
-       */
 
       if (
         interaction.customId ===
@@ -369,13 +368,8 @@ module.exports = {
           interaction,
           "spawners"
         );
-
         return;
       }
-
-      /*
-       * SPONSOR TICKET
-       */
 
       if (
         interaction.customId ===
@@ -385,14 +379,10 @@ module.exports = {
           interaction,
           "sponsor"
         );
-
         return;
       }
 
-      /*
-       * APPLICATIONS
-       */
-
+      // Applications
       if (
         interaction.customId ===
         "application_staff"
@@ -401,7 +391,6 @@ module.exports = {
           interaction,
           "staff"
         );
-
         return;
       }
 
@@ -413,7 +402,6 @@ module.exports = {
           interaction,
           "partner"
         );
-
         return;
       }
 
@@ -425,10 +413,46 @@ module.exports = {
           interaction,
           "builder"
         );
+        return;
+      }
+
+      // Application accept
+      if (
+        interaction.customId.startsWith(
+          "application_accept_"
+        )
+      ) {
+        await interaction.update({
+          components: []
+        });
+
+        await interaction.followUp({
+          content:
+            "✅ Application accepted.",
+          ephemeral: true
+        });
 
         return;
       }
 
+      // Application deny
+      if (
+        interaction.customId.startsWith(
+          "application_deny_"
+        )
+      ) {
+        await interaction.update({
+          components: []
+        });
+
+        await interaction.followUp({
+          content:
+            "❌ Application denied.",
+          ephemeral: true
+        });
+
+        return;
+      }
     } catch (error) {
       console.error(
         "Interaction error:",
