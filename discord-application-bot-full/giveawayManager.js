@@ -33,33 +33,34 @@ function parseDuration(input) {
   return amount * multipliers[unit];
 }
 
-function createGiveawayEmbed(giveaway) {
+function createGiveawayEmbed(giveaway, ended = false) {
   const endTimestamp = Math.floor(giveaway.endTime / 1000);
 
-  return new EmbedBuilder()
-    .setColor(0x0000ff)
-    .setTitle(` ${giveaway.prize}`)
-    .setDescription("Click the button below to enter!")
-    .addFields(
-      {
-        name: "Winners",
-        value: `${giveaway.winnerCount}`,
-        inline: false
-      },
-      {
-        name: "Hosted by",
-        value: giveaway.host,
-        inline: false
-      },
-      {
-        name: "Ends",
-        value:
-          `<t:${endTimestamp}:R>\n` +
-          `<t:${endTimestamp}:F>`,
-        inline: false
-      }
-    )
-    .setTimestamp(giveaway.endTime);
+  const embed = new EmbedBuilder()
+    .setColor(ended ? 0x555555 : 0x0000ff)
+    .setTitle(ended ? `🔴 ENDED: ${giveaway.prize}` : ` ${giveaway.prize}`);
+
+  if (ended) {
+    embed.setDescription(
+      "This giveaway has ended.\n\n" +
+      `**Winners:** ${giveaway.winnerCount}\n` +
+      `**Hosted by:** ${giveaway.host}\n` +
+      `**Ended:** <t:${endTimestamp}:R> (<t:${endTimestamp}:F>)`
+    );
+  } else {
+    embed.setDescription(
+      "Click the button below to enter!\n\n" +
+      `**Winners:** ${giveaway.winnerCount}\n` +
+      `**Hosted by:** ${giveaway.host}\n` +
+      `**Ends:** <t:${endTimestamp}:R> (<t:${endTimestamp}:F>)`
+    );
+  }
+
+  // NOTE: no .setTimestamp() here — that sets Discord's static footer
+  // stamp (bottom-right "Today at ..."), which does NOT count down.
+  // The <t:...:R> tag above is what live-updates in Discord's client.
+
+  return embed;
 }
 
 function createJoinButton(giveaway) {
@@ -262,7 +263,7 @@ async function endGiveaway(
   const winners = [];
 
   while (
-    winners.length <
+    winners.length 
       giveaway.winnerCount &&
     entries.length > 0
   ) {
@@ -335,11 +336,12 @@ async function endGiveaway(
       );
 
     await originalMessage.edit({
+      embeds: [createGiveawayEmbed(giveaway, true)],
       components: []
     });
   } catch (error) {
     console.error(
-      "Could not remove giveaway button:",
+      "Could not update ended giveaway embed:",
       error
     );
   }
