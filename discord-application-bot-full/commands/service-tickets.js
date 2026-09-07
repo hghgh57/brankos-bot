@@ -7,8 +7,6 @@ const {
   PermissionFlagsBits
 } = require("discord.js");
 
-const config = require("../config");
-
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("service-tickets")
@@ -21,11 +19,10 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor("#0000FF")
       .setDescription(
-        config.tickets?.panel?.description ||
-         "**8b|brankos community**"
         "Thanks for reaching out, feel free to make a ticket.\n\n" +
         "Click a button below to open a ticket in the relevant category.\n\n" +
-        "Only open a ticket if you genuinely need help."
+        "Only open a ticket if you genuinely need help.\n" +
+        "Brankos community support"
       );
 
     const row = new ActionRowBuilder().addComponents(
