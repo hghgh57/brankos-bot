@@ -88,7 +88,7 @@ function createGiveawayEmbed(giveaway) {
     `**Hosted by:** ${giveaway.host}`,
     hasWinners
       ? `**Ends:** <t:${endTimestamp}:R>`
-      : `**Time Left:** ${timeLeft}`,
+      : `**Ends:** ${timeLeft}`,
     "",
     `<t:${endTimestamp}:F>`
   ];
