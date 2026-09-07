@@ -12,16 +12,9 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption(option =>
       option
-        .setName("title")
-        .setDescription("The giveaway prize.")
-        .setRequired(false)
-        .setMaxLength(256)
-    )
-    .addStringOption(option =>
-      option
         .setName("prize")
         .setDescription("The giveaway prize.")
-        .setRequired(false)
+        .setRequired(true)
         .setMaxLength(256)
     )
     .addIntegerOption(option =>
@@ -55,10 +48,7 @@ module.exports = {
       });
     }
 
-    const title = interaction.options.getString("title");
-    const prizeOption = interaction.options.getString("prize");
-    const prize = (prizeOption || title || "").trim();
-
+    const prize = interaction.options.getString("prize", true).trim();
     const winners = interaction.options.getInteger("winners", true);
     const duration = interaction.options.getString("duration", true);
 
