@@ -1,10 +1,10 @@
 const {
   SlashCommandBuilder,
-  PermissionFlagsBits,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  PermissionFlagsBits
 } = require("discord.js");
 
 const config = require("../config");
@@ -20,36 +20,37 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    const panel = config.tickets.panel;
-
     const embed = new EmbedBuilder()
       .setColor(BLUE)
-      .setTitle(panel.title)
-      .setDescription(panel.description)
-      .setFooter({
-        text: "Brankos community support"
-      })
-      .setTimestamp();
+      .setTitle(config.tickets.panel.title)
+      .setDescription(
+        config.tickets.panel.description
+      );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("ticket_support")
-        .setLabel(config.tickets.support.label)
+        .setLabel("Support")
+        .setStyle(ButtonStyle.Danger),
+
+      new ButtonBuilder()
+        .setCustomId("ticket_bug")
+        .setLabel("Bug")
         .setStyle(ButtonStyle.Danger),
 
       new ButtonBuilder()
         .setCustomId("ticket_partner")
-        .setLabel(config.tickets.partner.label)
+        .setLabel("Partner")
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId("ticket_spawners")
-        .setLabel(config.tickets.spawners.label)
+        .setLabel("Buy/Sell Spawners")
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId("ticket_sponsor")
-        .setLabel(config.tickets.sponsor.label)
+        .setLabel("Sponsor")
         .setStyle(ButtonStyle.Primary)
     );
 
@@ -59,7 +60,7 @@ module.exports = {
     });
 
     await interaction.reply({
-      content: "✅ Ticket panel sent.",
+      content: "✅ Ticket panel sent!",
       ephemeral: true
     });
   }
