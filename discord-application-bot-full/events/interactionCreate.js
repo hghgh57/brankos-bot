@@ -1,267 +1,337 @@
-const config = require("../config");
+const {
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  EmbedBuilder,
+  PermissionsBitField,
+  ChannelType,
+} = require('discord.js');
 
 const {
   createTicket,
-  closeTicket
-} = require("../ticketManager");
+  claimTicket,
+  closeTicket,
+  finalizeCloseTicket,
+  cancelCloseTicket,
+  buildTicketControlRow,
+} = require('../utils/ticketManager');
 
 const {
-  joinGiveaway,
-  claimGiveaway
-} = require("../giveawayManager");
+  hasApplied,
+  clearApplied,
+  buildDecisionRow,
+} = require('../utils/applicationManager');
 
-function getQuestionText(question) {
-  if (typeof question === "string") {
-    return question;
-  }
+const {
+  startDmApplication,
+  handleDmApplicationStart,
+  handleDmApplicationQuestion,
+  handleDmApplicationCancel,
+} = require('../utils/dmApplication');
 
-  if (
-    question &&
-    typeof question.question === "string"
-  ) {
-    return question.question;
-  }
+const config = require('../config.json');
 
-  return "Question";
-}
+const rootGiveawayManager = require('../giveawayManager');
 
-function isYesNoQuestion(question) {
-  return (
-    question &&
-    typeof question === "object" &&
-    question.type === "yesno"
+const {
+  loadGiveaways,
+  saveGiveaways,
+  buildGiveawayEmbed,
+} = require('../utils/giveawayManager');
+
+const {
+  OPTION_LABELS,
+  buildStarsRow,
+} = require('../utils/vouchManager');
+
+const {
+  ensureStaffEmbed,
+} = require('../utils/staffTracker');
+
+
+/* =========================================================
+   SUPPORT CHECK
+========================================================= */
+
+function isSupport(member) {
+  const roleIds = config.supportRoleIds || [];
+
+  return roleIds.some(
+    (id) =>
+      id &&
+      !id.startsWith('PUT_') &&
+      member.roles.cache.has(id)
   );
 }
 
-async function startApplication(interaction, type) {
-  const application = config.applications[type];
 
-  if (!application) {
-    return interaction.reply({
-      content: "❌ This application does not exist.",
-      ephemeral: true
+/* =========================================================
+   RESET NORMAL TICKET DROPDOWN
+========================================================= */
+
+async function resetTicketDropdown(message) {
+  if (!message) return;
+
+  const categories = config.categories || [];
+
+  if (!categories.length) return;
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId('ticket_category_select')
+    .setPlaceholder('Select a ticket category…')
+    .addOptions(
+      categories
+        .slice(0, 25)
+        .map((cat) => ({
+          label: String(cat.label || cat.id).slice(0, 100),
+
+          description: String(
+            cat.description || 'Open a ticket'
+          ).slice(0, 100),
+
+          value: String(cat.id),
+
+          emoji: cat.emoji || undefined,
+        }))
+    );
+
+  await message
+    .edit({
+      components: [
+        new ActionRowBuilder().addComponents(menu),
+      ],
+    })
+    .catch((err) => {
+      console.error(
+        'Failed to reset ticket dropdown:',
+        err
+      );
     });
-  }
-
-  // Staff applications require Coal Miner
-  if (type === "staff") {
-    const coalMinerRoleId = "1500496895586336808";
-
-    const member = await interaction.guild.members
-      .fetch(interaction.user.id)
-      .catch(() => null);
-
-    if (
-      !member ||
-      !member.roles.cache.has(coalMinerRoleId)
-    ) {
-      return interaction.reply({
-        content:
-          "❌ You must have the @Coal Miner [5] role to apply for Staff.",
-        ephemeral: true
-      });
-    }
-  }
-
-  await interaction.reply({
-    content: "Check your DMs!",
-    ephemeral: true
-  });
-
-  const user = interaction.user;
-
-  try {
-    const dm = await user.createDM();
-
-    await dm.send(
-      `${application.name}\n\n` +
-      "Please answer the following questions one at a time.\n\n" +
-      "Type `cancel` at any time to cancel your application."
-    );
-
-    const answers = [];
-
-    for (
-      let i = 0;
-      i < application.questions.length;
-      i++
-    ) {
-      const question = application.questions[i];
-
-      const questionText =
-        getQuestionText(question);
-
-      await dm.send(
-        `Question ${i + 1}/${application.questions.length}\n\n` +
-        questionText
-      );
-
-      if (isYesNoQuestion(question)) {
-        await dm.send(
-          "Please answer with yes or no."
-        );
-      }
-
-      let answered = false;
-
-      while (!answered) {
-        const collected =
-          await dm.awaitMessages({
-            filter: message =>
-              message.author.id === user.id,
-            max: 1,
-            time: 300000
-          }).catch(() => null);
-
-        if (
-          !collected ||
-          collected.size === 0
-        ) {
-          await dm.send(
-            "Your application timed out. Please start again."
-          );
-          return;
-        }
-
-        const message = collected.first();
-        const answer =
-          message.content.trim();
-
-        if (
-          answer.toLowerCase() === "cancel"
-        ) {
-          await dm.send(
-            "Your application has been cancelled."
-          );
-          return;
-        }
-
-        if (isYesNoQuestion(question)) {
-          const lower =
-            answer.toLowerCase();
-
-          if (
-            lower !== "yes" &&
-            lower !== "no"
-          ) {
-            await dm.send(
-              "Please answer with yes or no."
-            );
-            continue;
-          }
-
-          answers.push(
-            lower === "yes" ? "Yes" : "No"
-          );
-
-          answered = true;
-        } else {
-          answers.push(answer);
-          answered = true;
-        }
-      }
-    }
-
-    // Build application text
-    let applicationText = "";
-
-    for (
-      let i = 0;
-      i < application.questions.length;
-      i++
-    ) {
-      applicationText +=
-        `**Question ${i + 1}:**\n` +
-        `${getQuestionText(application.questions[i])}\n` +
-        `**Answer:**\n` +
-        `${answers[i] || "No answer"}\n\n`;
-    }
-
-    // Send application to application channel
-    if (config.applicationChannelId) {
-      const channel =
-        await interaction.client.channels
-          .fetch(config.applicationChannelId)
-          .catch(() => null);
-
-      if (
-        channel &&
-        channel.isTextBased()
-      ) {
-        const {
-          EmbedBuilder,
-          ActionRowBuilder,
-          ButtonBuilder,
-          ButtonStyle
-        } = require("discord.js");
-
-        const embed =
-          new EmbedBuilder()
-            .setColor(0x0000FF)
-            .setTitle(
-              application.name
-            )
-            .setDescription(
-              `Applicant: ${user}\n\n` +
-              applicationText
-            )
-            .setFooter({
-              text: `User ID: ${user.id}`
-            })
-            .setTimestamp();
-
-        const row =
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(
-                `application_accept_${type}_${user.id}`
-              )
-              .setLabel("Accept")
-              .setStyle(
-                ButtonStyle.Success
-              ),
-
-            new ButtonBuilder()
-              .setCustomId(
-                `application_deny_${type}_${user.id}`
-              )
-              .setLabel("Deny")
-              .setStyle(
-                ButtonStyle.Danger
-              )
-          );
-
-        await channel.send({
-          content: `${user}`,
-          embeds: [embed],
-          components: [row]
-        });
-      }
-    }
-
-    await dm.send(
-      "Your application has been submitted. Thank you!"
-    );
-  } catch (error) {
-    console.error(
-      "Application error:",
-      error
-    );
-
-    try {
-      await user.send(
-        "I could not start your application. Please make sure your DMs are open."
-      );
-    } catch {}
-  }
 }
 
+
+/* =========================================================
+   RESET SERVICE TICKET DROPDOWN
+========================================================= */
+
+async function resetServiceTicketDropdown(message) {
+  if (!message) return;
+
+  const categories = config.serviceCategories || [];
+
+  if (!categories.length) return;
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId('service_ticket_category_select')
+    .setPlaceholder('Select a service…')
+    .addOptions(
+      categories
+        .slice(0, 25)
+        .map((cat) => ({
+          label: String(cat.label || cat.id).slice(0, 100),
+
+          description: String(
+            cat.description || 'Open a service ticket'
+          ).slice(0, 100),
+
+          value: String(cat.id),
+
+          emoji: cat.emoji || undefined,
+        }))
+    );
+
+  await message
+    .edit({
+      components: [
+        new ActionRowBuilder().addComponents(menu),
+      ],
+    })
+    .catch((err) => {
+      console.error(
+        'Failed to reset service ticket dropdown:',
+        err
+      );
+    });
+}
+
+
+/* =========================================================
+   RESET APPLICATION DROPDOWN
+========================================================= */
+
+async function resetApplicationDropdown(message) {
+  if (!message) return;
+
+  const apps = config.applications || [];
+
+  if (!apps.length) return;
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId('application_select')
+    .setPlaceholder('Select an application…')
+    .addOptions(
+      apps
+        .slice(0, 25)
+        .map((app) => ({
+          label: String(
+            app.label || app.id
+          ).slice(0, 100),
+
+          description: String(
+            app.description || 'Apply here'
+          ).slice(0, 100),
+
+          value: String(app.id),
+
+          emoji: app.emoji || undefined,
+        }))
+    );
+
+  await message
+    .edit({
+      components: [
+        new ActionRowBuilder().addComponents(menu),
+      ],
+    })
+    .catch((err) => {
+      console.error(
+        'Failed to reset application dropdown:',
+        err
+      );
+    });
+}
+
+
+/* =========================================================
+   BUILD TICKET QUESTIONS MODAL
+========================================================= */
+
+function buildQuestionsModal(category) {
+  const questions = category.questions || [];
+
+  const modal = new ModalBuilder()
+    .setCustomId(
+      `ticket_questions_modal_${category.id}`
+    )
+    .setTitle(
+      String(
+        category.label || 'Ticket'
+      ).slice(0, 45)
+    );
+
+  questions
+    .slice(0, 5)
+    .forEach((question, i) => {
+      const input = new TextInputBuilder()
+        .setCustomId(`q_${i}`)
+        .setLabel(
+          String(question).slice(0, 45)
+        )
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true)
+        .setMaxLength(1000);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(input)
+      );
+    });
+
+  return modal;
+}
+
+
+/* =========================================================
+   BUILD CUSTOM TICKET QUESTIONS MODAL
+========================================================= */
+
+function buildCustomQuestionsModal(category, roleId) {
+  const questions = category.questions || [];
+
+  const modal = new ModalBuilder()
+    .setCustomId(
+      `custom_ticket_questions:${category.id}:${roleId}`
+    )
+    .setTitle(
+      String(
+        category.label || 'Ticket'
+      ).slice(0, 45)
+    );
+
+  questions
+    .slice(0, 5)
+    .forEach((question, i) => {
+      const input = new TextInputBuilder()
+        .setCustomId(`q_${i}`)
+        .setLabel(
+          String(question).slice(0, 45)
+        )
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true)
+        .setMaxLength(1000);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(input)
+      );
+    });
+
+  return modal;
+}
+
+
+/* =========================================================
+   FIND NORMAL OR SERVICE CATEGORY
+========================================================= */
+
+function findTicketCategory(categoryId) {
+  const normalCategory = (
+    config.categories || []
+  ).find(
+    (category) =>
+      String(category.id) === String(categoryId)
+  );
+
+  if (normalCategory) {
+    return normalCategory;
+  }
+
+  const serviceCategory = (
+    config.serviceCategories || []
+  ).find(
+    (category) =>
+      String(category.id) === String(categoryId)
+  );
+
+  return serviceCategory || null;
+}
+
+
+/* =========================================================
+   MAIN INTERACTION EVENT
+========================================================= */
+
 module.exports = {
-  name: "interactionCreate",
+  name: 'interactionCreate',
 
   async execute(interaction) {
+
+    console.log(
+      `[INTERACTION] ${
+        interaction.customId ||
+        interaction.commandName ||
+        interaction.type
+      }`
+    );
+
     try {
+
+      /* =====================================================
+         SLASH COMMANDS
+      ===================================================== */
+
       if (interaction.isChatInputCommand()) {
+
         const command =
           interaction.client.commands.get(
             interaction.commandName
@@ -270,205 +340,1588 @@ module.exports = {
         if (!command) return;
 
         await command.execute(interaction);
+
         return;
       }
 
-      if (!interaction.isButton()) {
-        return;
-      }
 
-      // Giveaway join
+      /* =====================================================
+         NORMAL / SERVICE TICKET DROPDOWNS
+      ===================================================== */
+
       if (
-        interaction.customId.startsWith(
-          "giveaway_join_"
+        interaction.isStringSelectMenu() &&
+        (
+          interaction.customId ===
+            'ticket_category_select' ||
+
+          interaction.customId ===
+            'service_ticket_category_select' ||
+
+          interaction.customId ===
+            'service_ticket_select'
         )
       ) {
-        const giveawayId =
-          interaction.customId.replace(
-            "giveaway_join_",
-            ""
+
+        const selectedCategoryId =
+          interaction.values?.[0];
+
+        if (!selectedCategoryId) {
+
+          return interaction.reply({
+            content:
+              '❌ No ticket category was selected.',
+            ephemeral: true,
+          });
+
+        }
+
+        const category =
+          findTicketCategory(
+            selectedCategoryId
           );
 
-        await joinGiveaway(
-          interaction,
-          giveawayId
-        );
+        if (!category) {
 
-        return;
-      }
+          if (
+            interaction.customId ===
+            'ticket_category_select'
+          ) {
+            await resetTicketDropdown(
+              interaction.message
+            );
+          } else {
+            await resetServiceTicketDropdown(
+              interaction.message
+            );
+          }
 
-      // Giveaway claim
-      if (
-        interaction.customId.startsWith(
-          "giveaway_claim_"
-        )
-      ) {
-        const giveawayId =
-          interaction.customId.replace(
-            "giveaway_claim_",
-            ""
+          return interaction.reply({
+            content:
+              '❌ That ticket category could not be found.',
+            ephemeral: true,
+          });
+        }
+
+
+        /* =================================================
+           DETERMINE WHICH PANEL WAS USED
+        ================================================= */
+
+        const isServicePanel =
+          interaction.customId ===
+            'service_ticket_category_select' ||
+          interaction.customId ===
+            'service_ticket_select';
+
+
+        /* =================================================
+           RESET PANEL IMMEDIATELY
+           
+           This is important because Discord select menus
+           visually keep the selected value until the
+           original message is edited.
+        ================================================= */
+
+        if (isServicePanel) {
+
+          await resetServiceTicketDropdown(
+            interaction.message
           );
 
-        await claimGiveaway(
-          interaction,
-          giveawayId
-        );
+        } else {
 
-        return;
-      }
+          await resetTicketDropdown(
+            interaction.message
+          );
+        }
 
-      // Ticket close
-      if (
-        interaction.customId ===
-        "ticket_close"
-      ) {
-        await closeTicket(interaction);
-        return;
-      }
 
-      // Tickets
-      if (
-        interaction.customId ===
-        "ticket_support"
-      ) {
+        /* =================================================
+           CATEGORY HAS QUESTIONS
+        ================================================= */
+
+        if (
+          Array.isArray(category.questions) &&
+          category.questions.length > 0
+        ) {
+
+          await interaction.showModal(
+            buildQuestionsModal(category)
+          );
+
+          return;
+        }
+
+
+        /* =================================================
+           CATEGORY HAS NO QUESTIONS
+        ================================================= */
+
         await createTicket(
           interaction,
-          "support"
+          selectedCategoryId
         );
+
         return;
       }
 
-      if (
-        interaction.customId ===
-        "ticket_bug"
-      ) {
-        await createTicket(
-          interaction,
-          "bug"
-        );
-        return;
-      }
+
+      /* =====================================================
+         APPLICATION DM QUESTION MODAL
+      ===================================================== */
 
       if (
-        interaction.customId ===
-        "ticket_partner"
-      ) {
-        await createTicket(
-          interaction,
-          "partner"
-        );
-        return;
-      }
-
-      if (
-        interaction.customId ===
-        "ticket_spawners"
-      ) {
-        await createTicket(
-          interaction,
-          "spawners"
-        );
-        return;
-      }
-
-      if (
-        interaction.customId ===
-        "ticket_sponsor"
-      ) {
-        await createTicket(
-          interaction,
-          "sponsor"
-        );
-        return;
-      }
-
-      // Applications
-      if (
-        interaction.customId ===
-        "application_staff"
-      ) {
-        await startApplication(
-          interaction,
-          "staff"
-        );
-        return;
-      }
-
-      if (
-        interaction.customId ===
-        "application_partner"
-      ) {
-        await startApplication(
-          interaction,
-          "partner"
-        );
-        return;
-      }
-
-      if (
-        interaction.customId ===
-        "application_builder"
-      ) {
-        await startApplication(
-          interaction,
-          "builder"
-        );
-        return;
-      }
-
-      // Application accept
-      if (
+        interaction.isModalSubmit() &&
         interaction.customId.startsWith(
-          "application_accept_"
+          'dmapp_question_'
         )
       ) {
-        await interaction.update({
-          components: []
-        });
 
-        await interaction.followUp({
-          content:
-            "✅ Application accepted.",
-          ephemeral: true
-        });
+        await handleDmApplicationQuestion(
+          interaction
+        );
 
         return;
       }
 
-      // Application deny
+
+      /* =====================================================
+         NORMAL / SERVICE TICKET QUESTIONS MODAL
+      ===================================================== */
+
       if (
+        interaction.isModalSubmit() &&
         interaction.customId.startsWith(
-          "application_deny_"
+          'ticket_questions_modal_'
         )
       ) {
-        await interaction.update({
-          components: []
-        });
 
-        await interaction.followUp({
+        const categoryId =
+          interaction.customId.replace(
+            'ticket_questions_modal_',
+            ''
+          );
+
+        const category =
+          findTicketCategory(categoryId);
+
+        if (!category) {
+
+          return interaction.reply({
+            content:
+              '❌ Unknown ticket category.',
+            ephemeral: true,
+          });
+        }
+
+        const questions =
+          Array.isArray(category.questions)
+            ? category.questions.slice(0, 5)
+            : [];
+
+        const answers = questions.map(
+          (question, i) => ({
+            question,
+
+            answer:
+              interaction.fields.getTextInputValue(
+                `q_${i}`
+              ),
+          })
+        );
+
+        await createTicket(
+          interaction,
+          categoryId,
+          answers
+        );
+
+        return;
+      }
+
+
+      /* =====================================================
+         STAFF TRACKER SELECT
+      ===================================================== */
+
+      if (
+        interaction.isUserSelectMenu() &&
+        interaction.customId ===
+          'staff_tracker_select'
+      ) {
+
+        await interaction.deferUpdate();
+
+        const results = [];
+
+        for (
+          const userId of interaction.values
+        ) {
+
+          const created =
+            await ensureStaffEmbed(
+              interaction.guild,
+              userId
+            );
+
+          results.push(
+            `${
+              created
+                ? '✅ Created'
+                : 'ℹ️ Already exists'
+            } — <@${userId}>`
+          );
+        }
+
+        await interaction.editReply({
           content:
-            "❌ Application denied.",
-          ephemeral: true
+            `Staff tracker setup:\n${results.join(
+              '\n'
+            )}`,
+
+          components: [],
         });
 
         return;
       }
-    } catch (error) {
+
+
+      /* =====================================================
+         APPLICATION SELECT
+      ===================================================== */
+
+      if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId ===
+          'application_select'
+      ) {
+
+        const appId =
+          interaction.values?.[0];
+
+        if (!appId) {
+
+          await resetApplicationDropdown(
+            interaction.message
+          );
+
+          return interaction.reply({
+            content:
+              '❌ No application was selected.',
+            ephemeral: true,
+          });
+        }
+
+        const appConfig =
+          (config.applications || []).find(
+            (app) =>
+              String(app.id) ===
+              String(appId)
+          );
+
+        /* =================================================
+           INVALID APPLICATION
+        ================================================= */
+
+        if (!appConfig) {
+
+          await resetApplicationDropdown(
+            interaction.message
+          );
+
+          return interaction.reply({
+            content:
+              '❌ That application no longer exists.',
+            ephemeral: true,
+          });
+        }
+
+
+        /* =================================================
+           CHECK PENDING APPLICATION
+        ================================================= */
+
+        if (
+          hasApplied(
+            interaction.user.id,
+            appId
+          )
+        ) {
+
+          await resetApplicationDropdown(
+            interaction.message
+          );
+
+          return interaction.reply({
+            content:
+              '❌ You already have a pending application for this. Please wait for a decision before applying again.',
+            ephemeral: true,
+          });
+        }
+
+
+        /* =================================================
+           RESET APPLICATION PANEL
+           
+           This happens BEFORE attempting the DM.
+           Therefore the dropdown never gets stuck on the
+           user's previous selection.
+        ================================================= */
+
+        await resetApplicationDropdown(
+          interaction.message
+        );
+
+
+        /* =================================================
+           SEND APPLICATION TO DMS
+        ================================================= */
+
+        const started =
+          await startDmApplication(
+            interaction.guild,
+            interaction.user,
+            appId,
+            appConfig
+          );
+
+
+        /* =================================================
+           DM FAILED
+        ================================================= */
+
+        if (!started) {
+
+          return interaction.reply({
+            content:
+              "❌ I couldn't DM you. Please enable **Direct Messages from server members** and try again.",
+            ephemeral: true,
+          });
+        }
+
+
+        /* =================================================
+           DM SENT
+        ================================================= */
+
+        return interaction.reply({
+          content:
+            '📬 Check your DMs to fill out the application!',
+          ephemeral: true,
+        });
+      }
+
+
+      /* =====================================================
+         BUTTONS
+      ===================================================== */
+
+      if (interaction.isButton()) {
+
+        /* =================================================
+           CUSTOM TICKET PANEL
+
+           Custom tickets:
+           - only the Dev role can see them (plus the ticket owner)
+           - no category/parent
+           - no support questions
+           - closes through the normal ticket close system
+        ================================================= */
+
+        if (interaction.customId.startsWith('custom_ticket_create:')) {
+          const DEV_ROLE_ID = '1539513728972628058';
+          const role = await interaction.guild.roles
+            .fetch(DEV_ROLE_ID)
+            .catch(() => null);
+
+          if (!role) {
+            return interaction.reply({
+              content: '❌ The Dev role could not be found.',
+              ephemeral: true,
+            });
+          }
+
+          const existing = interaction.guild.channels.cache.filter((channel) => {
+            if (!channel.topic || !channel.topic.startsWith('custom_ticket|')) {
+              return false;
+            }
+
+            const parts = channel.topic.split('|');
+            return parts[1] === interaction.user.id;
+          }).size;
+
+          if (existing >= (config.maxOpenTicketsPerUser || 2)) {
+            return interaction.reply({
+              content:
+                `You already have ${existing} open custom ticket(s). ` +
+                'Please close one before opening another.',
+              ephemeral: true,
+            });
+          }
+
+          await interaction.deferReply({ ephemeral: true });
+
+          const permissionOverwrites = [
+            {
+              id: interaction.guild.roles.everyone.id,
+              deny: [
+                PermissionsBitField.Flags.ViewChannel,
+              ],
+            },
+            {
+              id: interaction.user.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.ReadMessageHistory,
+                PermissionsBitField.Flags.AttachFiles,
+                PermissionsBitField.Flags.EmbedLinks,
+              ],
+            },
+            {
+              id: DEV_ROLE_ID,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.ReadMessageHistory,
+                PermissionsBitField.Flags.ManageMessages,
+                PermissionsBitField.Flags.AttachFiles,
+                PermissionsBitField.Flags.EmbedLinks,
+              ],
+            },
+          ];
+
+          if (interaction.client.user) {
+            permissionOverwrites.push({
+              id: interaction.client.user.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.ReadMessageHistory,
+                PermissionsBitField.Flags.ManageChannels,
+                PermissionsBitField.Flags.ManageMessages,
+                PermissionsBitField.Flags.AttachFiles,
+                PermissionsBitField.Flags.EmbedLinks,
+              ],
+            });
+          }
+
+          const safeName =
+            interaction.user.username
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '')
+              .slice(0, 20) || 'user';
+
+          try {
+            // No parent/category is deliberately specified.
+            const channel = await interaction.guild.channels.create({
+              name: `custom-${safeName}`,
+              type: ChannelType.GuildText,
+              topic: `custom_ticket|${interaction.user.id}|${DEV_ROLE_ID}`,
+              permissionOverwrites,
+            });
+
+            const embed = new EmbedBuilder()
+              .setTitle('🎫 Ticket Created')
+              .setDescription(
+                `Hi ${interaction.user}, thanks for opening a ticket!\n\n` +
+                'Please explain what you need help with and a member of the team will assist you.'
+              )
+              .setColor(config.panel?.color || '#5865F2')
+              .setTimestamp();
+
+            await channel.send({
+              content: `${interaction.user} <@&${DEV_ROLE_ID}>`,
+              embeds: [embed],
+              components: [buildTicketControlRow()],
+            });
+
+            await interaction.editReply({
+              content: `✅ Your ticket has been created: ${channel}`,
+            });
+          } catch (err) {
+            console.error(
+              '[CUSTOM TICKET] Failed to create custom ticket:',
+              err
+            );
+
+            await interaction.editReply({
+              content:
+                '❌ Something went wrong creating your ticket. Please contact staff.',
+            }).catch(() => {});
+          }
+
+          return;
+        }
+
+        /* =================================================
+           SERVICE TICKET BUTTONS
+           The /service-tickets command uses buttons with:
+           service_ticket_open_<serviceId>
+        ================================================= */
+
+        if (interaction.customId.startsWith('service_ticket_open_')) {
+          const categoryId = interaction.customId.replace('service_ticket_open_', '');
+          const category = findTicketCategory(categoryId);
+
+          if (!category || !(config.serviceCategories || []).some((c) => c.id === categoryId)) {
+            return interaction.reply({
+              content: '❌ That service could not be found.',
+              ephemeral: true,
+            });
+          }
+
+          if (Array.isArray(category.questions) && category.questions.length > 0) {
+            await interaction.showModal(buildQuestionsModal(category));
+            return;
+          }
+
+          await createTicket(interaction, categoryId);
+          return;
+        }
+
+
+        /* =================================================
+           DM APPLICATION START
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith(
+            'dmapp_start_'
+          )
+        ) {
+
+          const applicationData =
+            interaction.customId.replace(
+              'dmapp_start_',
+              ''
+            );
+
+          await handleDmApplicationStart(
+            interaction,
+            applicationData
+          );
+
+          return;
+        }
+
+
+        /* =================================================
+           DM APPLICATION CANCEL
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith(
+            'dmapp_cancel_'
+          )
+        ) {
+
+          const applicationData =
+            interaction.customId.replace(
+              'dmapp_cancel_',
+              ''
+            );
+
+          await handleDmApplicationCancel(
+            interaction,
+            applicationData
+          );
+
+          return;
+        }
+
+
+        /* =================================================
+           VOUCH NO
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith(
+            'vouch_no_'
+          )
+        ) {
+
+          const rest =
+            interaction.customId.replace(
+              'vouch_no_',
+              ''
+            );
+
+          const [
+            requesterId,
+            optionValue,
+          ] = rest.split('|');
+
+          const optionLabel =
+            OPTION_LABELS[
+              optionValue
+            ] || optionValue;
+
+
+          await interaction.update({
+            embeds: [
+              new EmbedBuilder()
+                .setDescription(
+                  'No worries — thanks for letting us know!'
+                )
+                .setColor('#ED4245'),
+            ],
+
+            components: [],
+          });
+
+
+          const logChannelId =
+            config.vouchLogChannelId;
+
+          if (
+            logChannelId &&
+            !logChannelId.startsWith('PUT_')
+          ) {
+
+            const logChannel =
+              await interaction.client.channels
+                .fetch(logChannelId)
+                .catch(() => null);
+
+            if (logChannel) {
+
+              const logEmbed =
+                new EmbedBuilder()
+                  .setTitle('Vouch Declined')
+                  .addFields(
+                    {
+                      name: 'From',
+                      value:
+                        `${interaction.user.tag} (${interaction.user.id})`,
+                      inline: true,
+                    },
+                    {
+                      name: 'Requested by',
+                      value:
+                        `<@${requesterId}>`,
+                      inline: true,
+                    },
+                    {
+                      name: 'Category',
+                      value:
+                        optionLabel,
+                      inline: true,
+                    }
+                  )
+                  .setColor('#ED4245')
+                  .setTimestamp();
+
+              await logChannel
+                .send({
+                  embeds: [logEmbed],
+                })
+                .catch(() => {});
+            }
+          }
+
+          return;
+        }
+
+
+        /* =================================================
+           VOUCH YES
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith(
+            'vouch_yes_'
+          )
+        ) {
+
+          const rest =
+            interaction.customId.replace(
+              'vouch_yes_',
+              ''
+            );
+
+          const [
+            requesterId,
+            optionValue,
+          ] = rest.split('|');
+
+          await interaction.update({
+            embeds: [
+              new EmbedBuilder()
+                .setDescription(
+                  'Awesome! How many stars would you like to give? (1-5)'
+                )
+                .setColor('#5865F2'),
+            ],
+
+            components: [
+              buildStarsRow(
+                requesterId,
+                optionValue
+              ),
+            ],
+          });
+
+          return;
+        }
+
+
+        /* =================================================
+           VOUCH STARS
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith(
+            'vouch_stars_'
+          )
+        ) {
+
+          const rest =
+            interaction.customId.replace(
+              'vouch_stars_',
+              ''
+            );
+
+          const [
+            requesterId,
+            optionValue,
+            stars,
+          ] = rest.split('|');
+
+          const modal =
+            new ModalBuilder()
+              .setCustomId(
+                `vouch_comment_modal_${requesterId}|${optionValue}|${stars}`
+              )
+              .setTitle(
+                'Leave a Comment'
+              );
+
+          const commentInput =
+            new TextInputBuilder()
+              .setCustomId(
+                'vouch_comment_input'
+              )
+              .setLabel(
+                'Comment (optional)'
+              )
+              .setStyle(
+                TextInputStyle.Paragraph
+              )
+              .setRequired(false)
+              .setMaxLength(500);
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              commentInput
+            )
+          );
+
+          await interaction.showModal(
+            modal
+          );
+
+          return;
+        }
+
+
+        /* =================================================
+           GIVEAWAY JOIN / LEAVE
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith('giveaway_join_') ||
+          interaction.customId.startsWith('giveaway_leave_')
+        ) {
+          const isLeave =
+            interaction.customId.startsWith('giveaway_leave_');
+
+          const prefix =
+            isLeave
+              ? 'giveaway_leave_'
+              : 'giveaway_join_';
+
+          const giveawayId =
+            interaction.customId.slice(prefix.length);
+
+          if (!giveawayId) {
+            return interaction.reply({
+              content: '❌ Invalid giveaway.',
+              ephemeral: true,
+            });
+          }
+
+          if (isLeave) {
+            const result =
+              await rootGiveawayManager.leaveGiveaway(
+                interaction,
+                giveawayId
+              );
+
+            if (result?.success === false) {
+              return;
+            }
+
+            return;
+          }
+
+          await rootGiveawayManager.joinGiveaway(
+            interaction,
+            giveawayId
+          );
+
+          return;
+        }
+
+        /* =================================================
+           GIVEAWAY JOIN
+        ================================================= */
+
+        if (
+          interaction.customId ===
+          'giveaway_join'
+        ) {
+
+          const giveaways =
+            loadGiveaways();
+
+          const giveaway =
+            giveaways[
+              interaction.message.id
+            ];
+
+          if (
+            !giveaway ||
+            giveaway.ended
+          ) {
+
+            return interaction.reply({
+              content:
+                'This giveaway has ended.',
+              ephemeral: true,
+            });
+          }
+
+          if (
+            !Array.isArray(
+              giveaway.entrants
+            )
+          ) {
+            giveaway.entrants = [];
+          }
+
+          const userId =
+            interaction.user.id;
+
+          const idx =
+            giveaway.entrants.indexOf(
+              userId
+            );
+
+          if (idx === -1) {
+
+            giveaway.entrants.push(
+              userId
+            );
+
+            saveGiveaways(
+              giveaways
+            );
+
+            await interaction.reply({
+              content:
+                '🎉 You entered the giveaway!',
+              ephemeral: true,
+            });
+
+          } else {
+
+            giveaway.entrants.splice(
+              idx,
+              1
+            );
+
+            saveGiveaways(
+              giveaways
+            );
+
+            await interaction.reply({
+              content:
+                'You left the giveaway.',
+              ephemeral: true,
+            });
+          }
+
+          const updatedEmbed =
+            buildGiveawayEmbed(
+              giveaway.prize,
+              giveaway.endTimestamp,
+              giveaway.winnerCount,
+              giveaway.entrants.length
+            );
+
+          await interaction.message
+            .edit({
+              embeds: [
+                updatedEmbed,
+              ],
+            })
+            .catch(() => {});
+
+          return;
+        }
+
+
+        /* =================================================
+           REACTION ROLES
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith(
+            'rr_'
+          )
+        ) {
+
+          const roleId =
+            interaction.customId.replace(
+              'rr_',
+              ''
+            );
+
+          const member =
+            interaction.member;
+
+          await interaction.deferReply({
+            ephemeral: true,
+          });
+
+          const role =
+            await interaction.guild.roles
+              .fetch(roleId)
+              .catch(() => null);
+
+          if (!role) {
+
+            return interaction.editReply({
+              content:
+                '❌ That role no longer exists.',
+            });
+          }
+
+          const configEntry =
+            (
+              config.reactionRoles?.roles ||
+              []
+            ).find(
+              (r) =>
+                r.roleId === roleId
+            );
+
+          const displayName =
+            configEntry?.label ||
+            role.name;
+
+
+          if (
+            member.roles.cache.has(
+              roleId
+            )
+          ) {
+
+            try {
+
+              await member.roles.remove(
+                roleId
+              );
+
+              await interaction.editReply({
+                content:
+                  `Removed the **${displayName}** role.`,
+              });
+
+            } catch (err) {
+
+              console.error(
+                `Failed to remove role ${roleId}:`,
+                err
+              );
+
+              await interaction.editReply({
+                content:
+                  `❌ I couldn't remove the **${displayName}** role — check that my bot role is above it.`,
+              });
+            }
+
+          } else {
+
+            try {
+
+              await member.roles.add(
+                roleId
+              );
+
+              await interaction.editReply({
+                content:
+                  `Gave you the **${displayName}** role!`,
+              });
+
+            } catch (err) {
+
+              console.error(
+                `Failed to add role ${roleId}:`,
+                err
+              );
+
+              await interaction.editReply({
+                content:
+                  `❌ I couldn't give you the **${displayName}** role — check that my bot role is above it.`,
+              });
+            }
+          }
+
+          return;
+        }
+
+
+        /* =================================================
+           TICKET CLAIM
+        ================================================= */
+
+        if (
+          interaction.customId ===
+          'ticket_claim'
+        ) {
+
+          await claimTicket(
+            interaction
+          );
+
+          return;
+        }
+
+
+        /* =================================================
+           TICKET CLOSE
+        ================================================= */
+
+        if (
+          interaction.customId ===
+          'ticket_close'
+        ) {
+
+          await closeTicket(
+            interaction,
+            null
+          );
+
+          return;
+        }
+
+        /* =================================================
+           TICKET CLOSE CONFIRMATION
+        ================================================= */
+
+        if (interaction.customId === 'ticket_close_confirm') {
+          await finalizeCloseTicket(interaction);
+          return;
+        }
+
+        if (interaction.customId === 'ticket_close_cancel') {
+          await cancelCloseTicket(interaction);
+          return;
+        }
+
+
+        /* =================================================
+           CLOSE WITH REASON
+        ================================================= */
+
+        if (
+          interaction.customId ===
+          'ticket_close_reason'
+        ) {
+
+          const modal =
+            new ModalBuilder()
+              .setCustomId(
+                'ticket_close_reason_modal'
+              )
+              .setTitle(
+                'Close Ticket'
+              );
+
+          const reasonInput =
+            new TextInputBuilder()
+              .setCustomId(
+                'close_reason_input'
+              )
+              .setLabel(
+                'Reason for closing'
+              )
+              .setStyle(
+                TextInputStyle.Paragraph
+              )
+              .setPlaceholder(
+                'e.g. Issue resolved'
+              )
+              .setRequired(true)
+              .setMaxLength(500);
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              reasonInput
+            )
+          );
+
+          await interaction.showModal(
+            modal
+          );
+
+          return;
+        }
+
+
+        /* =================================================
+           APPLICATION ACCEPT / DENY
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith(
+            'app_accept_'
+          ) ||
+          interaction.customId.startsWith(
+            'app_deny_'
+          )
+        ) {
+
+          const isAccept =
+            interaction.customId.startsWith(
+              'app_accept_'
+            );
+
+          const prefix =
+            isAccept
+              ? 'app_accept_'
+              : 'app_deny_';
+
+          const rest =
+            interaction.customId.replace(
+              prefix,
+              ''
+            );
+
+          /*
+            Format:
+
+            app_accept_USERID_APPID
+            app_deny_USERID_APPID
+
+            Split only at the FIRST underscore.
+          */
+
+          const separator =
+            rest.indexOf('_');
+
+          if (
+            separator === -1
+          ) {
+
+            return interaction.reply({
+              content:
+                '❌ Invalid application button.',
+              ephemeral: true,
+            });
+          }
+
+          const applicantId =
+            rest.slice(
+              0,
+              separator
+            );
+
+          const appId =
+            rest.slice(
+              separator + 1
+            );
+
+
+          /* =================================================
+             STAFF CHECK
+          ================================================= */
+
+          if (
+            !interaction.member ||
+            !isSupport(
+              interaction.member
+            )
+          ) {
+
+            return interaction.reply({
+              content:
+                'Only staff can accept or deny applications.',
+              ephemeral: true,
+            });
+          }
+
+
+          /* =================================================
+             APPLICATION CONFIG
+          ================================================= */
+
+          const appConfig =
+            (
+              config.applications ||
+              []
+            ).find(
+              (app) =>
+                String(app.id) ===
+                String(appId)
+            );
+
+          const label =
+            appConfig
+              ? appConfig.label
+              : 'Application';
+
+
+          /* =================================================
+             GET ORIGINAL EMBED
+          ================================================= */
+
+          const originalEmbed =
+            interaction.message
+              .embeds[0];
+
+          if (!originalEmbed) {
+
+            return interaction.reply({
+              content:
+                '❌ Could not find the application embed.',
+              ephemeral: true,
+            });
+          }
+
+
+          /* =================================================
+             UPDATE APPLICATION
+          ================================================= */
+
+          const updatedEmbed =
+            EmbedBuilder
+              .from(originalEmbed)
+              .setColor(
+                isAccept
+                  ? '#57F287'
+                  : '#ED4245'
+              )
+              .setFooter({
+                text:
+                  `${
+                    isAccept
+                      ? 'Accepted'
+                      : 'Denied'
+                  } by ${
+                    interaction.user.tag
+                  }`,
+              });
+
+
+          await interaction.update({
+            embeds: [
+              updatedEmbed,
+            ],
+
+            components: [
+              buildDecisionRow(
+                applicantId,
+                appId,
+                true
+              ),
+            ],
+          });
+
+
+          /* =================================================
+             CLEAR PENDING APPLICATION
+          ================================================= */
+
+          clearApplied(
+            applicantId,
+            appId
+          );
+
+
+          /* =================================================
+             DM APPLICANT
+          ================================================= */
+
+          const applicant =
+            await interaction.client.users
+              .fetch(applicantId)
+              .catch(() => null);
+
+          if (applicant) {
+
+            await applicant
+              .send(
+                isAccept
+                  ? `🎉 Your **${label}** application in **${interaction.guild.name}** was accepted!`
+                  : `Your **${label}** application in **${interaction.guild.name}** was denied.`
+              )
+              .catch((err) => {
+                console.error(
+                  `Could not DM applicant ${applicantId}:`,
+                  err.message
+                );
+              });
+          }
+
+          return;
+        }
+      }
+
+
+      /* =====================================================
+         CLOSE REASON MODAL
+      ===================================================== */
+
+      if (
+        interaction.isModalSubmit() &&
+        interaction.customId ===
+          'ticket_close_reason_modal'
+      ) {
+
+        const reason =
+          interaction.fields
+            .getTextInputValue(
+              'close_reason_input'
+            )
+            .trim();
+
+        await closeTicket(
+          interaction,
+          reason || null
+        );
+
+        return;
+      }
+
+
+      /* =====================================================
+         VOUCH COMMENT MODAL
+      ===================================================== */
+
+      if (
+        interaction.isModalSubmit() &&
+        interaction.customId.startsWith(
+          'vouch_comment_modal_'
+        )
+      ) {
+
+        const rest =
+          interaction.customId.replace(
+            'vouch_comment_modal_',
+            ''
+          );
+
+        const [
+          requesterId,
+          optionValue,
+          stars,
+        ] = rest.split('|');
+
+        const comment =
+          interaction.fields
+            .getTextInputValue(
+              'vouch_comment_input'
+            ) ||
+          'No comment left.';
+
+        const optionLabel =
+          OPTION_LABELS[
+            optionValue
+          ] ||
+          optionValue;
+
+        const starsNum =
+          parseInt(
+            stars,
+            10
+          );
+
+        const safeStars =
+          Math.max(
+            1,
+            Math.min(
+              5,
+              Number.isNaN(
+                starsNum
+              )
+                ? 5
+                : starsNum
+            )
+          );
+
+        const starDisplay =
+          '⭐'.repeat(
+            safeStars
+          ) +
+          '☆'.repeat(
+            5 - safeStars
+          );
+
+
+        await interaction.update({
+          embeds: [
+            new EmbedBuilder()
+              .setDescription(
+                '✅ Thanks for your vouch!'
+              )
+              .setColor(
+                '#57F287'
+              ),
+          ],
+
+          components: [],
+        });
+
+
+        const vouchChannelId =
+          config.vouchChannelId;
+
+        if (
+          vouchChannelId &&
+          !vouchChannelId.startsWith(
+            'PUT_'
+          )
+        ) {
+
+          const vouchChannel =
+            await interaction.client.channels
+              .fetch(
+                vouchChannelId
+              )
+              .catch(
+                () => null
+              );
+
+          if (vouchChannel) {
+
+            const requester =
+              await interaction.client.users
+                .fetch(
+                  requesterId
+                )
+                .catch(
+                  () => null
+                );
+
+            const vouchEmbed =
+              new EmbedBuilder()
+                .setTitle(
+                  '⭐ New Vouch'
+                )
+                .addFields(
+                  {
+                    name:
+                      'Vouch For',
+
+                    value:
+                      requester
+                        ? `${requester}`
+                        : `<@${requesterId}>`,
+
+                    inline: true,
+                  },
+
+                  {
+                    name:
+                      'From',
+
+                    value:
+                      `${interaction.user}`,
+
+                    inline: true,
+                  },
+
+                  {
+                    name:
+                      'Category',
+
+                    value:
+                      optionLabel,
+
+                    inline: true,
+                  },
+
+                  {
+                    name:
+                      'Rating',
+
+                    value:
+                      starDisplay,
+                  },
+
+                  {
+                    name:
+                      'Comment',
+
+                    value:
+                      comment,
+                  }
+                )
+                .setColor(
+                  '#FEE75C'
+                )
+                .setTimestamp();
+
+
+            await vouchChannel
+              .send({
+                embeds: [
+                  vouchEmbed,
+                ],
+              })
+              .catch(
+                () => {}
+              );
+          }
+        }
+
+        return;
+      }
+
+    } catch (err) {
+
       console.error(
-        "Interaction error:",
-        error
+        'Error handling interaction:',
+        err
       );
 
-      if (
-        !interaction.replied &&
-        !interaction.deferred
-      ) {
-        await interaction.reply({
-          content:
-            "❌ Something went wrong.",
-          ephemeral: true
-        }).catch(() => {});
-      }
+      try {
+
+        if (
+          interaction.deferred ||
+          interaction.replied
+        ) {
+
+          await interaction.followUp({
+            content:
+              '❌ Something went wrong handling that action.',
+            ephemeral: true,
+          });
+
+        } else {
+
+          await interaction.reply({
+            content:
+              '❌ Something went wrong handling that action.',
+            ephemeral: true,
+          });
+        }
+
+      } catch (_) {}
     }
-  }
+  },
 };
