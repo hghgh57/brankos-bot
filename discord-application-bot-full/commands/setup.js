@@ -21,7 +21,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(BLUE)
       .setDescription(
-`__**staff Application Requirements:**__
+`__**Staff Application Requirements:**__
  
 - at least 14 years old 
 - able to do **10m+ in giveaway** in a week 
