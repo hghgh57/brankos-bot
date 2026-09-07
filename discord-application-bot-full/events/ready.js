@@ -2,8 +2,19 @@ module.exports = {
   name: "ready",
   once: true,
 
-  async execute(client) {
+  execute(client) {
     console.log(`Logged in as ${client.user.tag}`);
-    console.log(`Serving ${client.guilds.cache.size} server(s).`);
+
+    client.user.setPresence({
+      activities: [
+        {
+          name: "over BrankoGNG",
+          type: 3
+        }
+      ],
+      status: "online"
+    });
+
+    console.log("Status set to Watching over BrankoGNG");
   }
 };
