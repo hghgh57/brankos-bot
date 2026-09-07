@@ -12,7 +12,7 @@ module.exports = {
           type: 3
         }
       ],
-      status: "online"
+      status: "dnd"
     });
 
     console.log("Status set to Watching over BrankoGNG");
