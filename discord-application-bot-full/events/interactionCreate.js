@@ -43,7 +43,6 @@ async function startApplication(interaction, type) {
     });
   }
 
-  // Staff applications require Coal Miner
   if (type === "staff") {
     const coalMinerRoleId = "1500496895586336808";
 
@@ -162,7 +161,6 @@ async function startApplication(interaction, type) {
       }
     }
 
-    // Build application text
     let applicationText = "";
 
     for (
@@ -177,7 +175,6 @@ async function startApplication(interaction, type) {
         `${answers[i] || "No answer"}\n\n`;
     }
 
-    // Send application to application channel
     if (config.applicationChannelId) {
       const channel =
         await interaction.client.channels
@@ -277,7 +274,6 @@ module.exports = {
         return;
       }
 
-      // Giveaway join
       if (
         interaction.customId.startsWith(
           "giveaway_join_"
@@ -297,7 +293,6 @@ module.exports = {
         return;
       }
 
-      // Giveaway claim
       if (
         interaction.customId.startsWith(
           "giveaway_claim_"
@@ -317,7 +312,6 @@ module.exports = {
         return;
       }
 
-      // Ticket close
       if (
         interaction.customId ===
         "ticket_close"
@@ -326,7 +320,6 @@ module.exports = {
         return;
       }
 
-      // Tickets
       if (
         interaction.customId ===
         "ticket_support"
@@ -382,7 +375,43 @@ module.exports = {
         return;
       }
 
+      // Service tickets
+
+      if (
+        interaction.customId ===
+        "service_ticket_open_dig_out"
+      ) {
+        await createTicket(
+          interaction,
+          "dig_out"
+        );
+        return;
+      }
+
+      if (
+        interaction.customId ===
+        "service_ticket_open_request_build"
+      ) {
+        await createTicket(
+          interaction,
+          "request_build"
+        );
+        return;
+      }
+
+      if (
+        interaction.customId ===
+        "service_ticket_open_buy_ad"
+      ) {
+        await createTicket(
+          interaction,
+          "buy_ad"
+        );
+        return;
+      }
+
       // Applications
+
       if (
         interaction.customId ===
         "application_staff"
@@ -416,7 +445,6 @@ module.exports = {
         return;
       }
 
-      // Application accept
       if (
         interaction.customId.startsWith(
           "application_accept_"
@@ -435,7 +463,6 @@ module.exports = {
         return;
       }
 
-      // Application deny
       if (
         interaction.customId.startsWith(
           "application_deny_"
