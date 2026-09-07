@@ -7,7 +7,7 @@ const {
   PermissionFlagsBits
 } = require("discord.js");
 
-const config = require("../config");
+const config = require("./config");
 
 const BLUE = 0x0000FF;
 
