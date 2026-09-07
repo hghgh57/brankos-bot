@@ -7,10 +7,14 @@ module.exports = {
 
   async execute(member) {
     console.log(
-      `🚪 MEMBER LEAVE EVENT FIRED: ${member.user.tag} (${member.id}) left ${member.guild.name} (${member.guild.id})`
+      `🚪 MEMBER LEAVE EVENT FIRED: ${member.user?.tag || member.id} (${member.id}) left ${member.guild.name} (${member.guild.id})`
     );
 
     try {
+      // ================================
+      // FIND LEAVE CHANNEL
+      // ================================
+
       const channelId = config.leaveChannelId;
 
       if (!channelId) {
@@ -24,28 +28,27 @@ module.exports = {
         `🔎 Looking for leave channel: ${channelId}`
       );
 
-      const channel =
-        await member.guild.channels
-          .fetch(channelId)
-          .catch(error => {
-            console.error(
-              "❌ Could not fetch leave channel:",
-              error
-            );
+      const channel = await member.guild.channels
+        .fetch(channelId)
+        .catch(error => {
+          console.error(
+            "❌ Could not fetch leave channel:",
+            error
+          );
 
-            return null;
-          });
+          return null;
+        });
 
       if (!channel) {
         console.log(
-          `❌ Leave channel ${channelId} was not found in ${member.guild.name}.`
+          `❌ Leave channel ${channelId} was not found.`
         );
         return;
       }
 
       if (!channel.isTextBased()) {
         console.log(
-          `❌ Leave channel ${channelId} is not a text-based channel.`
+          `❌ Leave channel ${channelId} is not text-based.`
         );
         return;
       }
@@ -54,8 +57,12 @@ module.exports = {
         `✅ Leave channel found: ${channel.name}`
       );
 
+      // ================================
+      // SEND LEAVE MESSAGE
+      // ================================
+
       const username =
-        member.user.username;
+        member.user?.username || "Someone";
 
       await channel.send(
         `${username} Has Left Us... We Hope You Come Back Soon! 😢❤️`
@@ -65,23 +72,27 @@ module.exports = {
         `✅ Leave message sent for ${username}!`
       );
 
-      // Update member count
-      const totalMembers =
-        member.client.guilds.cache.reduce(
-          (total, guild) =>
-            total + guild.memberCount,
-          0
-        );
+      // ================================
+      // UPDATE MEMBER COUNT
+      // ================================
 
-      member.client.user.setPresence({
-        activities: [
-          {
-            name: `over ${totalMembers} members`,
-            type: 3
-          }
-        ],
-        status: "online"
-      });
+      let totalMembers = 0;
+
+      for (const guild of member.client.guilds.cache.values()) {
+        totalMembers += guild.memberCount || 0;
+      }
+
+      if (member.client.user) {
+        await member.client.user.setPresence({
+          activities: [
+            {
+              name: `over ${totalMembers} members`,
+              type: 3
+            }
+          ],
+          status: "online"
+        });
+      }
 
       console.log(
         `👀 Status updated: Watching over ${totalMembers} members`
