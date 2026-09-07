@@ -1,8 +1,8 @@
 module.exports = {
-  welcomeChannelId: "PUT_WELCOME_CHANNEL_ID_HERE",
-  leaveChannelId: "PUT_LEAVE_CHANNEL_ID_HERE",
-  applicationChannelId: "PUT_APPLICATION_CHANNEL_ID_HERE",
-  transcriptChannelId: "PUT_TRANSCRIPT_CHANNEL_ID_HERE",
+  welcomeChannelId: "1438877108452593765",
+  leaveChannelId: "1438877108452593765",
+  applicationChannelId: "1492509675520790598",
+  transcriptChannelId: "1499507598691536896",
 
   paidAd: {
     title: "💰 PAID ADVERTISEMENTS",
