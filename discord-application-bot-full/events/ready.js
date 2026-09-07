@@ -5,16 +5,23 @@ module.exports = {
   execute(client) {
     console.log(`Logged in as ${client.user.tag}`);
 
+    const totalMembers = client.guilds.cache.reduce(
+      (total, guild) => total + guild.memberCount,
+      0
+    );
+
     client.user.setPresence({
       activities: [
         {
-          name: "Whatching over Brankogng",
+          name: `over ${totalMembers} members`,
           type: 3
         }
       ],
-      status: "dnd"
+      status: "online"
     });
 
-    console.log("Status set to Watching over Brankogng");
+    console.log(
+      `Status: Watching over ${totalMembers} members`
+    );
   }
 };
