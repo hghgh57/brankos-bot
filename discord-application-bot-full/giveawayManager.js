@@ -73,6 +73,11 @@ async function startGiveaway({
   winners,
   duration
 }) {
+  // Always acknowledge the slash command before any Discord API work.
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
+  }
+
   const durationMs = parseDuration(duration);
 
   if (!durationMs) {
