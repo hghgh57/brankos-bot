@@ -3,7 +3,6 @@ module.exports = {
   leaveChannelId: "1438877108452593765",
   applicationChannelId: "1492509675520790598",
   transcriptChannelId: "1499507598691536896",
-  autoPingChannelId: "1441828230322454538",
 
   paidAd: {
     title: "💰 PAID ADVERTISEMENTS",
@@ -95,34 +94,8 @@ module.exports = {
       color: 0x0000FF,
       categoryId: "1526976384826736641",
       roleId: "1484216939466461376"
-    },
-
-    dig_out: {
-      name: "dig-out",
-      label: "Dig Out",
-      color: 0x0000FF,
-      categoryId: "1500435148347408496",
-      roleId: "1500062833939841187"
-    },
-
-    request_build: {
-      name: "request-build",
-      label: "Request Build",
-      color: 0x0000FF,
-      categoryId: "1500435148347408496",
-      roleId: "1500062833939841187"
-    },
-
-    buy_ad: {
-      name: "buy-ad",
-      label: "Buy Ad",
-      color: 0x0000FF,
-      categoryId: "1525811388411543623",
-      roleId: "1533223723182592011"
     }
   },
-
-  autoPingChannelId: null,
 
   applications: {
     staff: {
