@@ -34,6 +34,8 @@ function parseDuration(input) {
 }
 
 function createGiveawayEmbed(giveaway) {
+  const endTimestamp = Math.floor(giveaway.endTime / 1000);
+
   return new EmbedBuilder()
     .setColor(0x0000ff)
     .setTitle(`🎉 ${giveaway.prize}`)
@@ -51,7 +53,9 @@ function createGiveawayEmbed(giveaway) {
       },
       {
         name: "Ends",
-        value: `<t:${Math.floor(giveaway.endTime / 1000)}:R>`,
+        value:
+          `<t:${endTimestamp}:R>\n` +
+          `<t:${endTimestamp}:F>`,
         inline: false
       }
     )
@@ -307,7 +311,7 @@ async function endGiveaway(
         `giveaway_claim_${giveaway.id}`
       )
       .setLabel(
-        "Claim Now"
+        "🎁 Claim Prize"
       )
       .setStyle(
         ButtonStyle.Success
@@ -454,8 +458,7 @@ async function claimGiveaway(
         name: channelName,
         type: ChannelType.GuildText,
 
-        // IMPORTANT:
-        // There is NO parent/category here.
+        parent: "1510706103300784240",
         permissionOverwrites:
           permissions
       });
