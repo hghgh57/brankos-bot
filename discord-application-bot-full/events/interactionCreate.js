@@ -7,6 +7,8 @@ const {
   EmbedBuilder,
   PermissionsBitField,
   ChannelType,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 
 const {
@@ -1127,6 +1129,35 @@ module.exports = {
 
 
         /* =================================================
+           GIVEAWAY CLAIM
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith('giveaway_claim_')
+        ) {
+          const giveawayId =
+            interaction.customId.replace(
+              'giveaway_claim_',
+              ''
+            );
+
+          if (!giveawayId) {
+            return interaction.reply({
+              content: '❌ Invalid giveaway.',
+              ephemeral: true,
+            });
+          }
+
+          await rootGiveawayManager.claimGiveaway(
+            interaction,
+            giveawayId
+          );
+
+          return;
+        }
+
+
+        /* =================================================
            GIVEAWAY JOIN / LEAVE
         ================================================= */
 
@@ -1173,105 +1204,6 @@ module.exports = {
 
           return;
         }
-
-        /* =================================================
-           GIVEAWAY JOIN
-        ================================================= */
-
-        if (
-          interaction.customId ===
-          'giveaway_join'
-        ) {
-
-          const giveaways =
-            loadGiveaways();
-
-          const giveaway =
-            giveaways[
-              interaction.message.id
-            ];
-
-          if (
-            !giveaway ||
-            giveaway.ended
-          ) {
-
-            return interaction.reply({
-              content:
-                'This giveaway has ended.',
-              ephemeral: true,
-            });
-          }
-
-          if (
-            !Array.isArray(
-              giveaway.entrants
-            )
-          ) {
-            giveaway.entrants = [];
-          }
-
-          const userId =
-            interaction.user.id;
-
-          const idx =
-            giveaway.entrants.indexOf(
-              userId
-            );
-
-          if (idx === -1) {
-
-            giveaway.entrants.push(
-              userId
-            );
-
-            saveGiveaways(
-              giveaways
-            );
-
-            await interaction.reply({
-              content:
-                '🎉 You entered the giveaway!',
-              ephemeral: true,
-            });
-
-          } else {
-
-            giveaway.entrants.splice(
-              idx,
-              1
-            );
-
-            saveGiveaways(
-              giveaways
-            );
-
-            await interaction.reply({
-              content:
-                'You left the giveaway.',
-              ephemeral: true,
-            });
-          }
-
-          const updatedEmbed =
-            buildGiveawayEmbed(
-              giveaway.prize,
-              giveaway.endTimestamp,
-              giveaway.winnerCount,
-              giveaway.entrants.length
-            );
-
-          await interaction.message
-            .edit({
-              embeds: [
-                updatedEmbed,
-              ],
-            })
-            .catch(() => {});
-
-          return;
-        }
-
 
         /* =================================================
            REACTION ROLES
