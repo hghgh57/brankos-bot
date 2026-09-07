@@ -17,8 +17,8 @@ module.exports = {
 
     .addStringOption(option =>
       option
-        .setName("title")
-        .setDescription("The giveaway title.")
+        .setName("Prize")
+        .setDescription("The giveaway Prize.")
         .setRequired(true)
         .setMaxLength(256)
     )
