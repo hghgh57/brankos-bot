@@ -9,7 +9,7 @@ const {
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("stick")
+   .setName("unstick")
     .setDescription("Set a sticky message in this channel.")
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ManageMessages
