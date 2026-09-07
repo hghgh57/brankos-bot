@@ -1,3 +1,5 @@
+const { initGiveaways } = require("../giveawayManager");
+
 module.exports = {
   name: "ready",
   once: true,
@@ -6,6 +8,7 @@ module.exports = {
     console.log(`Logged in as ${client.user.tag}`);
 
     updateMemberCount(client);
+    initGiveaways(client);
   }
 };
 
