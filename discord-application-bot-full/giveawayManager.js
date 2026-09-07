@@ -104,7 +104,7 @@ function createGiveawayEmbed(giveaway) {
 function createJoinButton(giveaway, disabled = false) {
   const button = new ButtonBuilder()
     .setCustomId(`giveaway_join_${giveaway.id}`)
-    .setLabel(`🎉 Join Giveaway (${giveaway.entries.size})`)
+    .setLabel(` Join Giveaway (${giveaway.entries.size})`)
     .setStyle(ButtonStyle.Primary)
     .setDisabled(disabled);
 
