@@ -83,6 +83,8 @@ function initGiveaways(client) {
         endGiveaway(client, giveaway.id).catch(console.error);
       }, remaining);
     }
+
+    scheduleRefresh(client, giveaway.id);
   }
 
   if (stored.length > 0) {
@@ -114,13 +116,92 @@ function parseDuration(input) {
   return amount * multipliers[unit];
 }
 
+const REFRESH_INTERVAL_MS = 10 * 1000; // how often to nudge Discord to redraw the timestamp
+const REFRESH_GRACE_MS = 2 * 60 * 1000; // keep nudging for 2 min after it ends, so "Ended Xm ago" settles visibly
+
+// Periodically re-sends the same embed so Discord's client is forced to
+// redraw the <t:...:R> tag. Without this, if nothing else happens in the
+// channel, Discord can leave the old rendered text on screen indefinitely
+// even though the underlying tag is technically still correct.
+function scheduleRefresh(client, giveawayId) {
+  const interval = setInterval(async () => {
+    const giveaway = giveaways.get(giveawayId);
+
+    if (!giveaway) {
+      clearInterval(interval);
+      return;
+    }
+
+    if (Date.now() > giveaway.endTime + REFRESH_GRACE_MS) {
+      clearInterval(interval);
+      return;
+    }
+
+    try {
+      const channel = client.channels.cache.get(giveaway.channelId);
+      if (!channel) return;
+
+      const message = await channel.messages
+        .fetch(giveaway.messageId)
+        .catch(() => null);
+      if (!message) return;
+
+      const components =
+        giveaway.winners.length > 0
+          ? []
+          : [createJoinButton(giveaway)];
+
+      await message.edit({
+        embeds: [createGiveawayEmbed(giveaway)],
+        components
+      });
+    } catch (error) {
+      console.error("Giveaway refresh error:", error);
+    }
+  }, REFRESH_INTERVAL_MS);
+}
+
+// Formats a millisecond duration as "1d 4h", "4m 32s", "10s", etc.
+// Keeps at most 2 units so it stays short and readable.
+function formatDuration(ms) {
+  const abs = Math.abs(ms);
+
+  const seconds = Math.floor(abs / 1000) % 60;
+  const minutes = Math.floor(abs / (60 * 1000)) % 60;
+  const hours = Math.floor(abs / (60 * 60 * 1000)) % 24;
+  const days = Math.floor(abs / (24 * 60 * 60 * 1000));
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+
+  return parts.slice(0, 2).join(" ");
+}
+
+// Builds the "Ends:" line text ourselves instead of relying on Discord's
+// <t:...:R> tag. That tag only re-renders when Discord's client happens
+// to redraw the message, which isn't reliable — plain text we regenerate
+// every refresh tick always shows correctly, since the literal string
+// itself changes each time.
+function formatEndsText(giveaway) {
+  const diff = giveaway.endTime - Date.now();
+
+  if (diff > 0) {
+    return `in ${formatDuration(diff)}`;
+  }
+
+  return `${formatDuration(diff)} ago`;
+}
+
 function createGiveawayEmbed(giveaway) {
   const endTimestamp = Math.floor(giveaway.endTime / 1000);
 
-  // Same embed always — color, title, and the "Ends" label never change,
-  // even after the giveaway ends. The <t:...:R> tag live-updates on its
-  // own in Discord's client, so it naturally flips from "in 5m" to
-  // "1s ago" to "2 months ago" over time with zero extra code.
+  // Same embed always — color and title never change, even after the
+  // giveaway ends. The "Ends" line is computed fresh every time this
+  // function runs (see scheduleRefresh), so it stays accurate as long
+  // as the bot keeps re-editing the message periodically.
   return new EmbedBuilder()
     .setColor(0x0000ff)
     .setTitle(` ${giveaway.prize}`)
@@ -128,13 +209,12 @@ function createGiveawayEmbed(giveaway) {
       "Click the button below to enter!\n\n" +
       `**Winners:** ${giveaway.winnerCount}\n` +
       `**Hosted by:** ${giveaway.host}\n` +
-      `**Ends:** <t:${endTimestamp}:R>\n\n` +
+      `**Ends:** ${formatEndsText(giveaway)}\n\n` +
       `<t:${endTimestamp}:F>`
     );
 
   // NOTE: no .setTimestamp() here — that sets Discord's static footer
   // stamp (bottom-right "Today at ..."), which does NOT count down.
-  // The <t:...:R> tag above is what live-updates in Discord's client.
 }
 
 function createJoinButton(giveaway) {
@@ -232,6 +312,8 @@ async function startGiveaway({
       giveawayId
     ).catch(console.error);
   }, durationMs);
+
+  scheduleRefresh(interaction.client, giveawayId);
 
   return {
     success: true
