@@ -8,13 +8,13 @@ module.exports = {
     client.user.setPresence({
       activities: [
         {
-          name: "over BrankoGNG",
+          name: "Whatching over Brankogng",
           type: 3
         }
       ],
       status: "dnd"
     });
 
-    console.log("Status set to Watching over BrankoGNG");
+    console.log("Status set to Watching over Brankogng");
   }
 };
