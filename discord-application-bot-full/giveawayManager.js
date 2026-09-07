@@ -81,18 +81,19 @@ function createGiveawayEmbed(giveaway) {
 
   const lines = [
     hasWinners
-      ? "🎉 This giveaway has ended!"
+      ? "This giveaway has ended!"
       : "Click the button below to enter!",
     "",
     hasWinners
       ? `**Winner(s):** ${giveaway.winners.map(id => `<@${id}>`).join(" ")}`
       : `**Winners:** ${giveaway.winnerCount}`,
     `**Hosted by:** ${giveaway.host}`,
-    // Wrap just the time value in backticks so Discord renders it as a
-    // small boxed/monospace chip, e.g. "Ends: `10 seconds`".
-    hasWinners
-      ? `**Ends:** <t:${endTimestamp}:R>`
-      : `**Ends:** \`${timeLeft}\``,
+    // Once the giveaway has ended, drop the "Ends:" line entirely
+    // (the countdown box just goes away, like a timer that's done)
+    // instead of leaving a relative timestamp behind.
+    ...(hasWinners
+      ? []
+      : [`**Ends:** \`${timeLeft}\``]),
     "",
     `<t:${endTimestamp}:F>`
   ];
