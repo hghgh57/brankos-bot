@@ -67,17 +67,21 @@ function createJoinButton(giveaway) {
   return new ActionRowBuilder().addComponents(button);
 }
 
+function createLeaveButton(giveaway) {
+  const button = new ButtonBuilder()
+    .setCustomId(`giveaway_leave_${giveaway.id}`)
+    .setLabel("Leave Giveaway")
+    .setStyle(ButtonStyle.Danger);
+
+  return new ActionRowBuilder().addComponents(button);
+}
+
 async function startGiveaway({
   interaction,
   prize,
   winners,
   duration
 }) {
-  // Always acknowledge the slash command before any Discord API work.
-  if (!interaction.deferred && !interaction.replied) {
-    await interaction.deferReply({ ephemeral: true });
-  }
-
   const durationMs = parseDuration(duration);
 
   if (!durationMs) {
@@ -149,6 +153,42 @@ async function startGiveaway({
     giveawayId,
     giveaway
   );
+
+  // DM the giveaway creator with the giveaway details.
+  try {
+    const giveawayLink = `https://discord.com/channels/${giveaway.guildId}/${giveaway.channelId}/${giveaway.messageId}`;
+
+    const dmEmbed = new EmbedBuilder()
+      .setColor(0x0000ff)
+      .setTitle("🎉 Giveaway Created")
+      .setDescription(`Your giveaway **${giveaway.prize}** has been created successfully.`)
+      .addFields(
+        {
+          name: "Winners",
+          value: `${giveaway.winnerCount}`,
+          inline: true
+        },
+        {
+          name: "Duration",
+          value: duration,
+          inline: true
+        },
+        {
+          name: "Giveaway ID",
+          value: `\`${giveaway.id}\``
+        },
+        {
+          name: "Giveaway",
+          value: `[Jump to giveaway](${giveawayLink})`
+        }
+      )
+      .setTimestamp();
+
+    await interaction.user.send({ embeds: [dmEmbed] });
+  } catch (error) {
+    // DMs can be disabled, so don't fail the giveaway if the DM cannot be sent.
+    console.log(`Could not DM giveaway creator ${interaction.user.tag}:`, error.message);
+  }
 
   setTimeout(() => {
     endGiveaway(
@@ -235,10 +275,65 @@ async function joinGiveaway(
     );
   }
 
+  const leaveButton = new ButtonBuilder()
+    .setCustomId(`giveaway_leave_${giveaway.id}`)
+    .setLabel("Leave Giveaway")
+    .setStyle(ButtonStyle.Danger);
+
+  const leaveRow = new ActionRowBuilder().addComponents(leaveButton);
+
   await interaction.reply({
     content:
-      "🎉 You have entered the giveaway!",
+      "🎉 You have entered the giveaway!\n\nDo you want to leave the giveaway?",
+    components: [leaveRow],
     ephemeral: true
+  });
+}
+
+async function leaveGiveaway(interaction, giveawayId) {
+  const giveaway = giveaways.get(giveawayId);
+
+  if (!giveaway) {
+    return interaction.reply({
+      content: "❌ This giveaway no longer exists.",
+      ephemeral: true
+    });
+  }
+
+  if (Date.now() >= giveaway.endTime) {
+    return interaction.reply({
+      content: "❌ This giveaway has already ended.",
+      ephemeral: true
+    });
+  }
+
+  if (!giveaway.entries.has(interaction.user.id)) {
+    return interaction.reply({
+      content: "❌ You are not entered in this giveaway.",
+      ephemeral: true
+    });
+  }
+
+  giveaway.entries.delete(interaction.user.id);
+
+  try {
+    const channel = interaction.client.channels.cache.get(giveaway.channelId);
+
+    if (channel) {
+      const message = await channel.messages.fetch(giveaway.messageId);
+
+      await message.edit({
+        embeds: [createGiveawayEmbed(giveaway)],
+        components: [createJoinButton(giveaway)]
+      });
+    }
+  } catch (error) {
+    console.error("Giveaway leave update error:", error);
+  }
+
+  await interaction.update({
+    content: "✅ You have left the giveaway.",
+    components: []
   });
 }
 
@@ -553,10 +648,10 @@ async function claimGiveaway(
     components: [row]
   });
 }
+
 module.exports = {
   startGiveaway,
   joinGiveaway,
   leaveGiveaway,
-  claimGiveaway,
-  initGiveaways
+  claimGiveaway
 };
