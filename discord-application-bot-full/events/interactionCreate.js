@@ -31,7 +31,7 @@ const {
   handleDmApplicationCancel,
 } = require('../utils/dmApplication');
 
-const config = require('../config.json');
+const config = require('../config.js');
 
 const {
   loadGiveaways,
@@ -1360,9 +1360,40 @@ module.exports = {
           'ticket_close'
         ) {
 
-          await closeTicket(
-            interaction,
-            null
+          const modal =
+            new ModalBuilder()
+              .setCustomId(
+                'ticket_close_reason_modal'
+              )
+              .setTitle(
+                'Close Ticket'
+              );
+
+          const reasonInput =
+            new TextInputBuilder()
+              .setCustomId(
+                'close_reason_input'
+              )
+              .setLabel(
+                'Reason for closing (optional)'
+              )
+              .setStyle(
+                TextInputStyle.Paragraph
+              )
+              .setPlaceholder(
+                'You can leave this blank.'
+              )
+              .setRequired(false)
+              .setMaxLength(500);
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              reasonInput
+            )
+          );
+
+          await interaction.showModal(
+            modal
           );
 
           return;
@@ -1379,55 +1410,6 @@ module.exports = {
 
         if (interaction.customId === 'ticket_close_cancel') {
           await cancelCloseTicket(interaction);
-          return;
-        }
-
-
-        /* =================================================
-           CLOSE WITH REASON
-        ================================================= */
-
-        if (
-          interaction.customId ===
-          'ticket_close_reason'
-        ) {
-
-          const modal =
-            new ModalBuilder()
-              .setCustomId(
-                'ticket_close_reason_modal'
-              )
-              .setTitle(
-                'Close Ticket'
-              );
-
-          const reasonInput =
-            new TextInputBuilder()
-              .setCustomId(
-                'close_reason_input'
-              )
-              .setLabel(
-                'Reason for closing'
-              )
-              .setStyle(
-                TextInputStyle.Paragraph
-              )
-              .setPlaceholder(
-                'e.g. Issue resolved'
-              )
-              .setRequired(true)
-              .setMaxLength(500);
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(
-              reasonInput
-            )
-          );
-
-          await interaction.showModal(
-            modal
-          );
-
           return;
         }
 
