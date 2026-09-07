@@ -1,101 +1,551 @@
 const {
-  SlashCommandBuilder,
-  PermissionFlagsBits
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  PermissionsBitField
 } = require("discord.js");
 
-const {
-  startGiveaway
-} = require("../giveawayManager");
+const config = require("./config");
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("gcreate")
-    .setDescription("Start a giveaway.")
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild
-    )
+const giveaways = new Map();
 
-    .addStringOption(option =>
-      option
-        .setName("prize")
-        .setDescription("The giveaway prize.")
-        .setRequired(true)
-        .setMaxLength(256)
-    )
+function parseDuration(input) {
+  const match = input
+    .toLowerCase()
+    .trim()
+    .match(/^(\d+)\s*(s|m|h|d|w)$/);
 
-    .addIntegerOption(option =>
-      option
-        .setName("winners")
-        .setDescription("How many winners.")
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(100)
-    )
+  if (!match) return null;
 
-    .addStringOption(option =>
-      option
-        .setName("duration")
-        .setDescription("Examples: 7d, 24h, 30m, 1h")
-        .setRequired(true)
-        .setMaxLength(20)
-    ),
+  const amount = Number(match[1]);
+  const unit = match[2];
 
-  async execute(interaction) {
-    if (!interaction.inGuild()) {
-      await interaction.reply({
-        content: "❌ This command can only be used in a server.",
-        ephemeral: true,
-      });
-      return;
-    }
+  const multipliers = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+    w: 7 * 24 * 60 * 60 * 1000
+  };
 
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-      await interaction.reply({
-        content: "❌ You need the Manage Server permission to use this command.",
-        ephemeral: true,
-      });
-      return;
-    }
+  return amount * multipliers[unit];
+}
 
-    const prize =
-      interaction.options.getString("prize");
+function createGiveawayEmbed(giveaway) {
+  const endTimestamp = Math.floor(giveaway.endTime / 1000);
 
-    const winners =
-      interaction.options.getInteger("winners");
+  // Same embed always — color, title, and the "Ends" label never change,
+  // even after the giveaway ends. The <t:...:R> tag live-updates on its
+  // own in Discord's client, so it naturally flips from "in 5m" to
+  // "1s ago" to "2 months ago" over time with zero extra code.
+  return new EmbedBuilder()
+    .setColor(0x0000ff)
+    .setTitle(` ${giveaway.prize}`)
+    .setDescription(
+      "Click the button below to enter!\n\n" +
+      `**Winners:** ${giveaway.winnerCount}\n` +
+      `**Hosted by:** ${giveaway.host}\n` +
+      `**Ends:** <t:${endTimestamp}:R>\n\n` +
+      `<t:${endTimestamp}:F>`
+    );
 
-    const duration =
-      interaction.options.getString("duration");
+  // NOTE: no .setTimestamp() here — that sets Discord's static footer
+  // stamp (bottom-right "Today at ..."), which does NOT count down.
+  // The <t:...:R> tag above is what live-updates in Discord's client.
+}
 
-    let result;
+function createJoinButton(giveaway) {
+  const button = new ButtonBuilder()
+    .setCustomId(`giveaway_join_${giveaway.id}`)
+    .setLabel(`🎉 Join Giveaway (${giveaway.entries.size})`)
+    .setStyle(ButtonStyle.Primary);
 
-    try {
-      result = await startGiveaway({
-        interaction,
-        prize,
-        winners,
-        duration,
-      });
-    } catch (error) {
-      console.error("/gcreate error:", error);
+  return new ActionRowBuilder().addComponents(button);
+}
 
-      await interaction.reply({
-        content: "❌ Failed to start the giveaway. Check the bot console for the error.",
-        ephemeral: true,
-      });
-      return;
-    }
+async function startGiveaway({
+  interaction,
+  prize,
+  winners,
+  duration
+}) {
+  const durationMs = parseDuration(duration);
 
-    if (!result.success) {
-      await interaction.reply({
-        content: `❌ ${result.error}`,
-        ephemeral: true,
-      });
-      return;
-    }
+  if (!durationMs) {
+    return {
+      success: false,
+      error:
+        "Invalid duration. Use `10m`, `1h`, `7d` or `1w`."
+    };
+  }
 
-    await interaction.reply({
-      content: "✅ Giveaway started!",
-      ephemeral: true,
+  if (durationMs < 10000) {
+    return {
+      success: false,
+      error:
+        "The giveaway must last at least 10 seconds."
+    };
+  }
+
+  if (
+    durationMs >
+    30 * 24 * 60 * 60 * 1000
+  ) {
+    return {
+      success: false,
+      error:
+        "The giveaway cannot last longer than 30 days."
+    };
+  }
+
+  const giveawayId =
+    `${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
+  const giveaway = {
+    id: giveawayId,
+
+    guildId: interaction.guild.id,
+    channelId: interaction.channel.id,
+    messageId: null,
+
+    prize,
+    winnerCount: winners,
+
+    hostId: interaction.user.id,
+    host: `<@${interaction.user.id}>`,
+
+    endTime: Date.now() + durationMs,
+
+    entries: new Set(),
+    winners: [],
+    claimed: new Set()
+  };
+
+  const giveawayMessage =
+    await interaction.channel.send({
+      embeds: [
+        createGiveawayEmbed(giveaway)
+      ],
+      components: [
+        createJoinButton(giveaway)
+      ]
+    });
+
+  giveaway.messageId =
+    giveawayMessage.id;
+
+  giveaways.set(
+    giveawayId,
+    giveaway
+  );
+
+  setTimeout(() => {
+    endGiveaway(
+      interaction.client,
+      giveawayId
+    ).catch(console.error);
+  }, durationMs);
+
+  return {
+    success: true
+  };
+}
+
+async function joinGiveaway(
+  interaction,
+  giveawayId
+) {
+  const giveaway =
+    giveaways.get(giveawayId);
+
+  if (!giveaway) {
+    return interaction.reply({
+      content:
+        "❌ This giveaway no longer exists.",
+      ephemeral: true
     });
   }
+
+  if (
+    Date.now() >=
+    giveaway.endTime
+  ) {
+    return interaction.reply({
+      content:
+        "❌ This giveaway has already ended.",
+      ephemeral: true
+    });
+  }
+
+  if (
+    giveaway.entries.has(
+      interaction.user.id
+    )
+  ) {
+    return interaction.reply({
+      content:
+        "❌ You are already entered in this giveaway.",
+      ephemeral: true
+    });
+  }
+
+  giveaway.entries.add(
+    interaction.user.id
+  );
+
+  try {
+    const channel =
+      interaction.client.channels.cache.get(
+        giveaway.channelId
+      );
+
+    if (channel) {
+      const message =
+        await channel.messages.fetch(
+          giveaway.messageId
+        );
+
+      await message.edit({
+        embeds: [
+          createGiveawayEmbed(
+            giveaway
+          )
+        ],
+        components: [
+          createJoinButton(giveaway)
+        ]
+      });
+    }
+  } catch (error) {
+    console.error(
+      "Giveaway update error:",
+      error
+    );
+  }
+
+  await interaction.reply({
+    content:
+      "🎉 You have entered the giveaway!",
+    ephemeral: true
+  });
+}
+
+async function endGiveaway(
+  client,
+  giveawayId
+) {
+  const giveaway =
+    giveaways.get(giveawayId);
+
+  if (!giveaway) return;
+
+  if (
+    giveaway.winners.length > 0
+  ) {
+    return;
+  }
+
+  const entries = [
+    ...giveaway.entries
+  ];
+
+  const winners = [];
+
+  while (
+    winners.length <
+      giveaway.winnerCount &&
+    entries.length > 0
+  ) {
+    const randomIndex =
+      Math.floor(
+        Math.random() *
+          entries.length
+      );
+
+    winners.push(
+      entries.splice(
+        randomIndex,
+        1
+      )[0]
+    );
+  }
+
+  giveaway.winners = winners;
+
+  const channel =
+    client.channels.cache.get(
+      giveaway.channelId
+    );
+
+  if (!channel) return;
+
+  let winnerText;
+
+  if (winners.length === 0) {
+    winnerText =
+      `🎉 **${giveaway.prize}**\n\n` +
+      "❌ **No one entered this giveaway.**";
+  } else {
+    const winnerMentions =
+      winners
+        .map(id => `<@${id}>`)
+        .join(" ");
+
+    winnerText =
+      `🎉 ${winnerMentions} **you won ${giveaway.prize}!**`;
+  }
+
+  const claimButton =
+    new ButtonBuilder()
+      .setCustomId(
+        `giveaway_claim_${giveaway.id}`
+      )
+      .setLabel(
+        "🎁 Claim Prize"
+      )
+      .setStyle(
+        ButtonStyle.Success
+      );
+
+  const row =
+    new ActionRowBuilder()
+      .addComponents(
+        claimButton
+      );
+
+  await channel.send({
+    content: winnerText,
+    components: [row]
+  });
+
+  try {
+    const originalMessage =
+      await channel.messages.fetch(
+        giveaway.messageId
+      );
+
+    await originalMessage.edit({
+      embeds: [createGiveawayEmbed(giveaway)],
+      components: []
+    });
+  } catch (error) {
+    console.error(
+      "Could not update ended giveaway embed:",
+      error
+    );
+  }
+}
+
+async function claimGiveaway(
+  interaction,
+  giveawayId
+) {
+  const giveaway =
+    giveaways.get(giveawayId);
+
+  if (!giveaway) {
+    return interaction.reply({
+      content:
+        "❌ This giveaway no longer exists.",
+      ephemeral: true
+    });
+  }
+
+  if (
+    !giveaway.winners.includes(
+      interaction.user.id
+    )
+  ) {
+    return interaction.reply({
+      content:
+        "❌ You are not one of the winners of this giveaway.",
+      ephemeral: true
+    });
+  }
+
+  if (
+    giveaway.claimed.has(
+      interaction.user.id
+    )
+  ) {
+    return interaction.reply({
+      content:
+        "❌ You have already claimed this giveaway.",
+      ephemeral: true
+    });
+  }
+
+  const guild =
+    interaction.guild;
+
+  if (!guild) {
+    return interaction.reply({
+      content:
+        "❌ This can only be claimed inside the server.",
+      ephemeral: true
+    });
+  }
+
+  const channelName =
+    `giveaway-claim-${interaction.user.username}`
+      .toLowerCase()
+      .replace(
+        /[^a-z0-9-]/g,
+        "-"
+      )
+      .replace(
+        /-+/g,
+        "-"
+      )
+      .slice(0, 90);
+
+  const supportRoleId =
+    config.tickets?.support?.roleId;
+
+  const permissions = [
+    {
+      id: guild.roles.everyone.id,
+      deny: [
+        PermissionsBitField.Flags.ViewChannel
+      ]
+    },
+
+    {
+      id: interaction.user.id,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ReadMessageHistory
+      ]
+    },
+
+    {
+      id: giveaway.hostId,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ReadMessageHistory
+      ]
+    }
+  ];
+
+  if (supportRoleId) {
+    permissions.push({
+      id: supportRoleId,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ReadMessageHistory,
+        PermissionsBitField.Flags.ManageMessages
+      ]
+    });
+  }
+
+  let ticketChannel;
+
+  try {
+    ticketChannel =
+      await guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+
+        parent: "1510706103300784240",
+        permissionOverwrites:
+          permissions
+      });
+  } catch (error) {
+    console.error(
+      "Giveaway ticket error:",
+      error
+    );
+
+    return interaction.reply({
+      content:
+        "❌ I could not create the ticket. Please check my permissions.",
+      ephemeral: true
+    });
+  }
+
+  giveaway.claimed.add(
+    interaction.user.id
+  );
+
+  await interaction.reply({
+    content:
+      `✅ **Ticket created!**\nYour giveaway claim ticket has been created: ${ticketChannel}`,
+    ephemeral: true
+  });
+
+  const winnerMention =
+    `<@${interaction.user.id}>`;
+
+  const hostMention =
+    `<@${giveaway.hostId}>`;
+
+  const embed =
+    new EmbedBuilder()
+      .setColor(0x0000ff)
+      .setTitle(
+        `Giveaway Claim — ${interaction.user.username}`
+      )
+      .setDescription(
+        `Hey ${winnerMention}, thanks for claiming the giveaway!\n\n` +
+        "Our support team will be with you shortly."
+      )
+      .addFields(
+        {
+          name: "Prize",
+          value: giveaway.prize,
+          inline: false
+        },
+        {
+          name: "Host",
+          value: hostMention,
+          inline: true
+        },
+        {
+          name: "Winner",
+          value: winnerMention,
+          inline: true
+        }
+      )
+      .setFooter({
+        text:
+          "Brankos community support"
+      });
+
+  const closeButton =
+    new ButtonBuilder()
+      .setCustomId(
+        "ticket_close"
+      )
+      .setLabel(
+        "Close Ticket"
+      )
+      .setStyle(
+        ButtonStyle.Danger
+      );
+
+  const row =
+    new ActionRowBuilder()
+      .addComponents(
+        closeButton
+      );
+
+  await ticketChannel.send({
+    content:
+      `${hostMention} ${winnerMention}`,
+    embeds: [embed],
+    components: [row]
+  });
+}
+
+module.exports = {
+  startGiveaway,
+  joinGiveaway,
+  claimGiveaway
 };
