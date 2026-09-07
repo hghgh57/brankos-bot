@@ -1,4 +1,5 @@
 const config = require("../config");
+
 const {
   createTicket,
   closeTicket
@@ -32,12 +33,17 @@ function isYesNoQuestion(question) {
   );
 }
 
-async function startApplication(interaction, type) {
-  const application = config.applications[type];
+async function startApplication(
+  interaction,
+  type
+) {
+  const application =
+    config.applications[type];
 
   if (!application) {
     return interaction.reply({
-      content: "❌ This application does not exist.",
+      content:
+        "❌ This application does not exist.",
       ephemeral: true
     });
   }
@@ -54,8 +60,8 @@ async function startApplication(interaction, type) {
 
     await dm.send(
       `${application.name}\n\n` +
-      `Please answer the following questions one at a time.\n\n` +
-      `Type \`cancel\` at any time to cancel your application.`
+      "Please answer the following questions one at a time.\n\n" +
+      "Type `cancel` at any time to cancel your application."
     );
 
     const answers = [];
@@ -65,7 +71,8 @@ async function startApplication(interaction, type) {
       i < application.questions.length;
       i++
     ) {
-      const question = application.questions[i];
+      const question =
+        application.questions[i];
 
       const questionText =
         getQuestionText(question);
@@ -88,6 +95,7 @@ async function startApplication(interaction, type) {
           await dm.awaitMessages({
             filter: message =>
               message.author.id === user.id,
+
             max: 1,
             time: 300000
           }).catch(() => null);
@@ -103,7 +111,8 @@ async function startApplication(interaction, type) {
           return;
         }
 
-        const message = collected.first();
+        const message =
+          collected.first();
 
         const answer =
           message.content.trim();
@@ -137,7 +146,7 @@ async function startApplication(interaction, type) {
           answers.push(answer);
 
           await dm.send(
-            answer.toLowerCase() === "yes"
+            lower === "yes"
               ? "Yes"
               : "No"
           );
@@ -167,20 +176,22 @@ async function startApplication(interaction, type) {
         )}\n`;
 
       applicationText +=
-        `Answer: ${answers[i] || "No answer"}\n\n`;
+        `Answer: ${
+          answers[i] || "No answer"
+        }\n\n`;
     }
 
     if (config.applicationChannelId) {
-      const applicationChannel =
+      const channel =
         interaction.client.channels.cache.get(
           config.applicationChannelId
         );
 
       if (
-        applicationChannel &&
-        applicationChannel.isTextBased()
+        channel &&
+        channel.isTextBased()
       ) {
-        await applicationChannel.send(
+        await channel.send(
           applicationText
         );
       }
@@ -212,7 +223,9 @@ module.exports = {
        * SLASH COMMANDS
        */
 
-      if (interaction.isChatInputCommand()) {
+      if (
+        interaction.isChatInputCommand()
+      ) {
         const command =
           interaction.client.commands.get(
             interaction.commandName
@@ -220,7 +233,9 @@ module.exports = {
 
         if (!command) return;
 
-        await command.execute(interaction);
+        await command.execute(
+          interaction
+        );
 
         return;
       }
@@ -280,16 +295,23 @@ module.exports = {
       }
 
       /*
-       * NORMAL TICKETS
+       * CLOSE TICKET
        */
 
       if (
         interaction.customId ===
         "ticket_close"
       ) {
-        await closeTicket(interaction);
+        await closeTicket(
+          interaction
+        );
+
         return;
       }
+
+      /*
+       * SUPPORT TICKET
+       */
 
       if (
         interaction.customId ===
@@ -299,8 +321,29 @@ module.exports = {
           interaction,
           "support"
         );
+
         return;
       }
+
+      /*
+       * BUG TICKET
+       */
+
+      if (
+        interaction.customId ===
+        "ticket_bug"
+      ) {
+        await createTicket(
+          interaction,
+          "bug"
+        );
+
+        return;
+      }
+
+      /*
+       * PARTNER TICKET
+       */
 
       if (
         interaction.customId ===
@@ -310,8 +353,13 @@ module.exports = {
           interaction,
           "partner"
         );
+
         return;
       }
+
+      /*
+       * SPAWNERS TICKET
+       */
 
       if (
         interaction.customId ===
@@ -321,8 +369,13 @@ module.exports = {
           interaction,
           "spawners"
         );
+
         return;
       }
+
+      /*
+       * SPONSOR TICKET
+       */
 
       if (
         interaction.customId ===
@@ -332,6 +385,7 @@ module.exports = {
           interaction,
           "sponsor"
         );
+
         return;
       }
 
@@ -374,6 +428,7 @@ module.exports = {
 
         return;
       }
+
     } catch (error) {
       console.error(
         "Interaction error:",
@@ -384,13 +439,11 @@ module.exports = {
         !interaction.replied &&
         !interaction.deferred
       ) {
-        await interaction
-          .reply({
-            content:
-              "❌ Something went wrong.",
-            ephemeral: true
-          })
-          .catch(() => {});
+        await interaction.reply({
+          content:
+            "❌ Something went wrong.",
+          ephemeral: true
+        }).catch(() => {});
       }
     }
   }
