@@ -1,4 +1,4 @@
-const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const { EmbedBuilder } = require("discord.js");
 const config = require("../config");
 
 const BLUE = 0x0000FF;
@@ -55,12 +55,13 @@ module.exports = {
         return;
       }
 
-      // Delete the old sticky message if one exists
-      const oldSticky = stickyMessages.get(message.channel.id);
+      const oldSticky = stickyMessages.get(
+        message.channel.id
+      );
 
       if (oldSticky) {
         const oldMessage = await message.channel.messages
-          .fetch(oldSticky)
+          .fetch(oldSticky.id)
           .catch(() => null);
 
         if (oldMessage) {
@@ -68,7 +69,6 @@ module.exports = {
         }
       }
 
-      // Send the new sticky embed
       const embed = new EmbedBuilder()
         .setColor(BLUE)
         .setDescription(stickMessage);
@@ -77,56 +77,45 @@ module.exports = {
         embeds: [embed]
       });
 
-      // Save the sticky message
-      stickyMessages.set(
-        message.channel.id,
-        sticky.id
-      );
+      stickyMessages.set(message.channel.id, {
+        id: sticky.id,
+        content: stickMessage
+      });
 
-      // Delete the .stick command
       await message.delete().catch(() => {});
 
       return;
     }
 
     /*
-     * STICKY MESSAGE SYSTEM
+     * STICKY MESSAGE
      */
 
-    const stickyId = stickyMessages.get(message.channel.id);
+    const sticky = stickyMessages.get(
+      message.channel.id
+    );
 
-    if (!stickyId) return;
+    if (!sticky) return;
 
-    const stickyMessage = await message.channel.messages
-      .fetch(stickyId)
+    const oldStickyMessage = await message.channel.messages
+      .fetch(sticky.id)
       .catch(() => null);
 
-    if (stickyMessage) {
-      await stickyMessage.delete().catch(() => {});
+    if (oldStickyMessage) {
+      await oldStickyMessage.delete().catch(() => {});
     }
 
     const embed = new EmbedBuilder()
       .setColor(BLUE)
-      .setDescription(
-        stickyMessage?.embeds?.[0]?.description || ""
-      );
-
-    // Get the saved sticky text directly from the previous message
-    const stickyData = stickyMessages.get(
-      `${message.channel.id}_content`
-    );
-
-    if (stickyData) {
-      embed.setDescription(stickyData);
-    }
+      .setDescription(sticky.content);
 
     const newSticky = await message.channel.send({
       embeds: [embed]
     });
 
-    stickyMessages.set(
-      message.channel.id,
-      newSticky.id
-    );
+    stickyMessages.set(message.channel.id, {
+      id: newSticky.id,
+      content: sticky.content
+    });
   }
 };
