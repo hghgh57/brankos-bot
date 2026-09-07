@@ -1,5 +1,7 @@
 const config = require("../config");
 
+console.log("✅ guildMemberRemove.js loaded");
+
 module.exports = {
   name: "guildMemberRemove",
 
@@ -9,18 +11,14 @@ module.exports = {
     );
 
     try {
-      const channelId = config.leaveChannelId;
-
-      console.log(`📌 Leave channel ID: ${channelId}`);
-
-      const channel = await member.guild.channels.fetch(channelId).catch(() => null);
+      const channel = await member.guild.channels.fetch(
+        config.leaveChannelId
+      );
 
       if (!channel) {
-        console.log("❌ I cannot find the leave channel.");
+        console.log("❌ Leave channel not found.");
         return;
       }
-
-      console.log(`✅ Found leave channel: ${channel.name}`);
 
       await channel.send(
         `${member.user.username} Has Left Us... We Hope You Come Back Soon! 😢❤️`
