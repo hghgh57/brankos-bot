@@ -4,43 +4,37 @@ module.exports = {
   name: "guildMemberRemove",
 
   async execute(member) {
+    console.log(
+      `🚪 MEMBER LEAVE EVENT: ${member.user.tag} left ${member.guild.name}`
+    );
+
     try {
       const channelId = config.leaveChannelId;
 
-      if (!channelId) {
-        console.log("❌ leaveChannelId is not set in config.js");
-        return;
-      }
+      console.log(`📌 Leave channel ID: ${channelId}`);
 
       const channel = await member.guild.channels.fetch(channelId).catch(() => null);
 
       if (!channel) {
-        console.log(`❌ Leave channel not found: ${channelId}`);
+        console.log("❌ I cannot find the leave channel.");
         return;
       }
 
-      if (!channel.isTextBased()) {
-        console.log("❌ Leave channel is not a text channel.");
-        return;
-      }
+      console.log(`✅ Found leave channel: ${channel.name}`);
 
       await channel.send(
         `${member.user.username} Has Left Us... We Hope You Come Back Soon! 😢❤️`
       );
 
-      console.log(
-        `✅ Leave message sent for ${member.user.username}`
-      );
+      console.log("✅ Leave message sent!");
 
       // Update member count
-      const client = member.client;
-
-      const totalMembers = client.guilds.cache.reduce(
+      const totalMembers = member.client.guilds.cache.reduce(
         (total, guild) => total + guild.memberCount,
         0
       );
 
-      client.user.setPresence({
+      member.client.user.setPresence({
         activities: [
           {
             name: `over ${totalMembers} members`,
@@ -51,7 +45,7 @@ module.exports = {
       });
 
     } catch (error) {
-      console.error("❌ Leave message error:", error);
+      console.error("❌ Leave event error:", error);
     }
   }
 };
