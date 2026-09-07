@@ -5,6 +5,25 @@ module.exports = {
 
   async execute(member) {
     try {
+      // Update bot member count
+      const client = member.client;
+
+      const totalMembers = client.guilds.cache.reduce(
+        (total, guild) => total + guild.memberCount,
+        0
+      );
+
+      client.user.setPresence({
+        activities: [
+          {
+            name: `over ${totalMembers} members`,
+            type: 3
+          }
+        ],
+        status: "online"
+      });
+
+      // Leave message
       const channelId = config.leaveChannelId;
 
       if (!channelId) {
@@ -31,6 +50,11 @@ module.exports = {
       console.log(
         `✅ Leave message sent for ${member.user.username}`
       );
+
+      console.log(
+        `Status: Watching over ${totalMembers} members`
+      );
+
     } catch (error) {
       console.error("❌ Leave message error:", error);
     }
