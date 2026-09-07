@@ -38,7 +38,7 @@ function createGiveawayEmbed(giveaway) {
 
   return new EmbedBuilder()
     .setColor(0x0000ff)
-    .setTitle(`🎉 ${giveaway.prize}`)
+    .setTitle(` ${giveaway.prize}`)
     .setDescription("Click the button below to enter!")
     .addFields(
       {
