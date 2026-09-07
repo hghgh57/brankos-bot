@@ -13,7 +13,7 @@ const BLUE = 0x0000FF;
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("setup-tickets")
+    .setName("ticket-panel")
     .setDescription("Send the ticket panel.")
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ManageGuild
