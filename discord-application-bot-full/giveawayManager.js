@@ -46,7 +46,7 @@ function createGiveawayEmbed(giveaway) {
     .setDescription(
       "Click the button below to enter!\n\n" +
       `**Winners:** ${giveaway.winnerCount}\n` +
-      `**Hosted by:** ${giveaway.host}\n\n` +
+      `**Hosted by:** ${giveaway.host}\n` +
       `**Ends:** <t:${endTimestamp}:R>\n\n` +
       `<t:${endTimestamp}:F>`
     );
