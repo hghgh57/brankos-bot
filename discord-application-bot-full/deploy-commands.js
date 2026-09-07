@@ -4,48 +4,38 @@ const { REST, Routes } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
-const { TOKEN, CLIENT_ID, GUILD_ID } = process.env;
-
-if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
-  console.error("❌ Missing TOKEN, CLIENT_ID or GUILD_ID in your .env/environment variables.");
-  process.exit(1);
-}
-
 const commands = [];
+
 const commandsPath = path.join(__dirname, "commands");
 
-for (const file of fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"))) {
-  try {
-    const command = require(path.join(commandsPath, file));
+for (
+  const file of fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"))
+) {
+  const command = require(path.join(commandsPath, file));
 
-    if (!command?.data?.name) {
-      console.error(`❌ Skipping ${file}: no valid command data/name.`);
-      continue;
-    }
-
-    commands.push(command.data.toJSON());
-    console.log(`✅ Prepared /${command.data.name}`);
-  } catch (error) {
-    console.error(`❌ Failed to load command ${file}:`, error);
-    process.exit(1);
-  }
+  commands.push(command.data.toJSON());
 }
 
-const rest = new REST({ version: "10" }).setToken(TOKEN);
+const rest = new REST({
+  version: "10"
+}).setToken(process.env.TOKEN);
 
 (async () => {
   try {
-    console.log(`📦 Registering ${commands.length} slash commands to guild ${GUILD_ID}...`);
+    console.log(`Registering ${commands.length} slash commands...`);
 
     await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
+      Routes.applicationGuildCommands(
+        process.env.CLIENT_ID,
+        process.env.GUILD_ID
+      ),
+      {
+        body: commands
+      }
     );
 
-    console.log("✅ Slash commands registered successfully.");
-    console.log("✅ /gcreate is included in the registered commands.");
+    console.log("Slash commands registered.");
   } catch (error) {
-    console.error("❌ Failed to register slash commands:", error);
-    process.exit(1);
+    console.error(error);
   }
 })();
