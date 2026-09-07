@@ -1,27 +1,47 @@
 const {
   SlashCommandBuilder,
-  PermissionFlagsBits,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  PermissionFlagsBits
 } = require("discord.js");
+
+const BLUE = 0x0000FF;
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("setup-applications")
+    .setName("setup")
     .setDescription("Send the application panel.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.ManageGuild
+    ),
 
   async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle("Applications")
+      .setColor(BLUE)
       .setDescription(
-        "Choose an application below to apply.\n\n" +
-        "You will receive the application in your DMs. " +
-        "Answer each question one at a time. Type `cancel` at any time to cancel."
-      )
-      .setColor(0x5865F2);
+`__**Staff Application requirements:**__
+
+• at least 14 years old
+• able to do **10+ partnerships a week.**
+• able to do **10M+ in giveaway** in a week
+• able to be really active in chat
+• must be **experienced**
+• must react daily to reactivity check
+• must be kind
+• must have <@&COAL_MINER_ROLE_ID>
+
+__**Partner Manager requirements**__
+
+• at least 14 years old
+• you **must** be able to find other servers who we can partner with.
+• able to do **10+ partnerships a week.**
+• you **must** be experienced
+• **Follow** our Partner requirements
+• We **do not** accept waves
+• You can only do **private wave / solo partners only!**`
+      );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -31,7 +51,7 @@ module.exports = {
 
       new ButtonBuilder()
         .setCustomId("application_partner")
-        .setLabel("Partner Manager")
+        .setLabel("Partner Manager Application")
         .setStyle(ButtonStyle.Primary),
 
       new ButtonBuilder()
@@ -46,7 +66,7 @@ module.exports = {
     });
 
     await interaction.reply({
-      content: "Application panel sent.",
+      content: "✅ Application panel sent!",
       ephemeral: true
     });
   }
