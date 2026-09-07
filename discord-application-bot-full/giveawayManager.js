@@ -35,6 +35,7 @@ function parseDuration(input) {
 
 function createGiveawayEmbed(giveaway) {
   const hasWinners = giveaway.winners.length > 0;
+  const endTimestamp = Math.floor(giveaway.endTime / 1000);
 
   const fields = [
     {
@@ -43,13 +44,13 @@ function createGiveawayEmbed(giveaway) {
       inline: false
     },
     {
-      name: "Entries",
-      value: `${giveaway.entries.size}`,
+      name: "Hosted by",
+      value: giveaway.host,
       inline: false
     },
     {
-      name: "Hosted by",
-      value: giveaway.host,
+      name: "Ends",
+      value: `<t:${endTimestamp}:R>\n<t:${endTimestamp}:F>`,
       inline: false
     }
   ];
@@ -64,31 +65,20 @@ function createGiveawayEmbed(giveaway) {
 
   return new EmbedBuilder()
     .setColor(0x0000ff)
-    .setTitle(`🎉 ${giveaway.prize}`)
+    .setTitle(`${giveaway.prize}`)
     .setDescription(
       hasWinners
         ? "🎉 This giveaway has ended!"
         : "Click the button below to enter!"
     )
-    .addFields(fields)
-    .setTimestamp(giveaway.endTime);
+    .addFields(fields);
 }
 
-function createJoinButton(giveaway, disabled = false) {
+function createJoinButton(giveaway) {
   const button = new ButtonBuilder()
     .setCustomId(`giveaway_join_${giveaway.id}`)
     .setLabel(`🎉 Join Giveaway (${giveaway.entries.size})`)
-    .setStyle(ButtonStyle.Primary)
-    .setDisabled(disabled);
-
-  return new ActionRowBuilder().addComponents(button);
-}
-
-function createLeaveButton(giveaway) {
-  const button = new ButtonBuilder()
-    .setCustomId(`giveaway_leave_${giveaway.id}`)
-    .setLabel("Leave Giveaway")
-    .setStyle(ButtonStyle.Danger);
+    .setStyle(ButtonStyle.Primary);
 
   return new ActionRowBuilder().addComponents(button);
 }
@@ -99,6 +89,11 @@ async function startGiveaway({
   winners,
   duration
 }) {
+  // Always acknowledge the slash command before any Discord API work.
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
+  }
+
   const durationMs = parseDuration(duration);
 
   if (!durationMs) {
@@ -178,21 +173,6 @@ async function startGiveaway({
     ).catch(console.error);
   }, durationMs);
 
-  // DM the host their giveaway ID (needed for /greroll later).
-  try {
-    await interaction.user.send({
-      content:
-        `🎉 Your giveaway for **${prize}** has started in **${interaction.guild.name}**!\n` +
-        `**Giveaway ID:** \`${giveawayId}\`\n` +
-        `Keep this ID — you'll need it to run \`/greroll giveawayid:${giveawayId}\` if you ever need to reroll a winner.`
-    });
-  } catch (error) {
-    console.error(
-      "Could not DM giveaway host (DMs may be closed):",
-      error
-    );
-  }
-
   return {
     success: true,
     giveawayId
@@ -232,10 +212,7 @@ async function joinGiveaway(
   ) {
     return interaction.reply({
       content:
-        "You already joined the giveaway",
-      components: [
-        createLeaveButton(giveaway)
-      ],
+        "❌ You are already entered in this giveaway.",
       ephemeral: true
     });
   }
@@ -276,99 +253,9 @@ async function joinGiveaway(
 
   await interaction.reply({
     content:
-      "You joined the giveaway",
-    components: [
-      createLeaveButton(giveaway)
-    ],
+      "🎉 You have entered the giveaway!",
     ephemeral: true
   });
-}
-
-async function leaveGiveaway(
-  interaction,
-  giveawayId
-) {
-  const giveaway =
-    giveaways.get(giveawayId);
-
-  if (!giveaway) {
-    await interaction.reply({
-      content:
-        "❌ This giveaway no longer exists.",
-      ephemeral: true
-    });
-    return { success: false };
-  }
-
-  if (
-    Date.now() >=
-    giveaway.endTime
-  ) {
-    await interaction.reply({
-      content:
-        "❌ This giveaway has already ended.",
-      ephemeral: true
-    });
-    return { success: false };
-  }
-
-  if (
-    !giveaway.entries.has(
-      interaction.user.id
-    )
-  ) {
-    await interaction.reply({
-      content:
-        "❌ You are not entered in this giveaway.",
-      ephemeral: true
-    });
-    return { success: false };
-  }
-
-  giveaway.entries.delete(
-    interaction.user.id
-  );
-
-  try {
-    const channel =
-      interaction.client.channels.cache.get(
-        giveaway.channelId
-      );
-
-    if (channel) {
-      const message =
-        await channel.messages.fetch(
-          giveaway.messageId
-        );
-
-      await message.edit({
-        embeds: [
-          createGiveawayEmbed(
-            giveaway
-          )
-        ],
-        components: [
-          createJoinButton(giveaway)
-        ]
-      });
-    }
-  } catch (error) {
-    console.error(
-      "Giveaway update error:",
-      error
-    );
-  }
-
-  await interaction.reply({
-    content:
-      "You left the giveaway",
-    components: [
-      createJoinButton(giveaway)
-    ],
-    ephemeral: true
-  });
-
-  return { success: true };
 }
 
 async function endGiveaway(
@@ -459,8 +346,6 @@ async function endGiveaway(
     components: [row]
   });
 
-  // Keep the original giveaway message up (with the final embed and a
-  // disabled join button) instead of stripping its components away.
   try {
     const originalMessage =
       await channel.messages.fetch(
@@ -468,136 +353,14 @@ async function endGiveaway(
       );
 
     await originalMessage.edit({
-      embeds: [
-        createGiveawayEmbed(giveaway)
-      ],
-      components: [
-        createJoinButton(giveaway, true)
-      ]
+      components: []
     });
   } catch (error) {
     console.error(
-      "Could not update the giveaway message after it ended:",
+      "Could not remove giveaway button:",
       error
     );
   }
-}
-
-async function rerollGiveaway(
-  interaction,
-  giveawayId
-) {
-  const giveaway =
-    giveaways.get(giveawayId);
-
-  if (!giveaway) {
-    return interaction.reply({
-      content:
-        "❌ This giveaway no longer exists.",
-      ephemeral: true
-    });
-  }
-
-  if (giveaway.winners.length === 0) {
-    return interaction.reply({
-      content:
-        "❌ This giveaway hasn't ended yet, so there's nothing to reroll.",
-      ephemeral: true
-    });
-  }
-
-  const entries = [
-    ...giveaway.entries
-  ];
-
-  if (entries.length === 0) {
-    return interaction.reply({
-      content:
-        "❌ There are no entries to pick a new winner from.",
-      ephemeral: true
-    });
-  }
-
-  const winnerCount = Math.min(
-    giveaway.winnerCount,
-    entries.length
-  );
-
-  const newWinners = [];
-
-  while (
-    newWinners.length < winnerCount &&
-    entries.length > 0
-  ) {
-    const randomIndex =
-      Math.floor(
-        Math.random() * entries.length
-      );
-
-    newWinners.push(
-      entries.splice(randomIndex, 1)[0]
-    );
-  }
-
-  giveaway.winners = newWinners;
-  giveaway.claimed = new Set();
-
-  const winnerMentions =
-    newWinners
-      .map(id => `<@${id}>`)
-      .join(" ");
-
-  const channel =
-    interaction.client.channels.cache.get(
-      giveaway.channelId
-    );
-
-  if (channel) {
-    const claimButton =
-      new ButtonBuilder()
-        .setCustomId(
-          `giveaway_claim_${giveaway.id}`
-        )
-        .setLabel("Claim Now")
-        .setStyle(ButtonStyle.Success);
-
-    const row =
-      new ActionRowBuilder().addComponents(
-        claimButton
-      );
-
-    await channel.send({
-      content:
-        `🎉 New winner(s) for **${giveaway.prize}**: ${winnerMentions}!`,
-      components: [row]
-    });
-
-    try {
-      const originalMessage =
-        await channel.messages.fetch(
-          giveaway.messageId
-        );
-
-      await originalMessage.edit({
-        embeds: [
-          createGiveawayEmbed(giveaway)
-        ],
-        components: [
-          createJoinButton(giveaway, true)
-        ]
-      });
-    } catch (error) {
-      console.error(
-        "Could not update the giveaway message after reroll:",
-        error
-      );
-    }
-  }
-
-  return interaction.reply({
-    content: `✅ Rerolled! New winner(s): ${winnerMentions}`,
-    ephemeral: true
-  });
 }
 
 async function claimGiveaway(
@@ -807,20 +570,8 @@ async function claimGiveaway(
   });
 }
 
-function initGiveaways(client) {
-  // Giveaway state is kept in-memory only (no DB/file persistence),
-  // so there is nothing to restore on restart. This just confirms
-  // the manager is ready once the client is logged in.
-  console.log(
-    `✅ Giveaway manager initialized (${giveaways.size} active giveaways).`
-  );
-}
-
 module.exports = {
-  initGiveaways,
   startGiveaway,
   joinGiveaway,
-  leaveGiveaway,
-  claimGiveaway,
-  rerollGiveaway
+  claimGiveaway
 };
