@@ -11,18 +11,14 @@ async function sendSticky(channel, content) {
     .setColor(BLUE)
     .setDescription(content);
 
-  const message = await channel.send({
+  return await channel.send({
     embeds: [embed]
   });
-
-  return message;
 }
 
 async function setSticky(channel, content) {
   try {
-    const oldSticky = stickyMessages.get(
-      channel.id
-    );
+    const oldSticky = stickyMessages.get(channel.id);
 
     if (oldSticky) {
       const oldMessage = await channel.messages
@@ -61,9 +57,7 @@ async function setSticky(channel, content) {
 }
 
 async function removeSticky(channel) {
-  const sticky = stickyMessages.get(
-    channel.id
-  );
+  const sticky = stickyMessages.get(channel.id);
 
   if (!sticky) {
     return {
@@ -108,23 +102,30 @@ async function handleStickyMessage(message) {
 
   if (!sticky) return;
 
-  const oldMessage = await message.channel.messages
-    .fetch(sticky.messageId)
-    .catch(() => null);
+  try {
+    const oldMessage = await message.channel.messages
+      .fetch(sticky.messageId)
+      .catch(() => null);
 
-  if (oldMessage) {
-    await oldMessage.delete().catch(() => {});
+    if (oldMessage) {
+      await oldMessage.delete().catch(() => {});
+    }
+
+    const newMessage = await sendSticky(
+      message.channel,
+      sticky.content
+    );
+
+    stickyMessages.set(message.channel.id, {
+      messageId: newMessage.id,
+      content: sticky.content
+    });
+  } catch (error) {
+    console.error(
+      "❌ Sticky update error:",
+      error
+    );
   }
-
-  const newMessage = await sendSticky(
-    message.channel,
-    sticky.content
-  );
-
-  stickyMessages.set(message.channel.id, {
-    messageId: newMessage.id,
-    content: sticky.content
-  });
 }
 
 module.exports = {
