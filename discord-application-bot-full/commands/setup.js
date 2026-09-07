@@ -21,7 +21,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(BLUE)
       .setDescription(
-`__**staff application requirements:**__
+`__**staff Application Requirements:**__
  
 - at least 14 years old 
 - able to do **10m+ in giveaway** in a week 
@@ -31,7 +31,7 @@ module.exports = {
 - must be kind 
 - must have <@&1500496895586336808> 
  
-__**Partner manager requirements:**__ 
+__**Partner Manager Requirements:**__ 
 - at least 14 years old 
 - you __must__ be able to find other servers who we can partner with. 
 - able to do **10+** partnerships a **week** 
