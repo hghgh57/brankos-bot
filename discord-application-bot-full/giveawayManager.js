@@ -33,34 +33,27 @@ function parseDuration(input) {
   return amount * multipliers[unit];
 }
 
-function createGiveawayEmbed(giveaway, ended = false) {
+function createGiveawayEmbed(giveaway) {
   const endTimestamp = Math.floor(giveaway.endTime / 1000);
 
-  const embed = new EmbedBuilder()
-    .setColor(ended ? 0x555555 : 0x0000ff)
-    .setTitle(ended ? `🔴 ENDED: ${giveaway.prize}` : ` ${giveaway.prize}`);
-
-  if (ended) {
-    embed.setDescription(
-      "This giveaway has ended.\n\n" +
-      `**Winners:** ${giveaway.winnerCount}\n` +
-      `**Hosted by:** ${giveaway.host}\n` +
-      `**Ended:** <t:${endTimestamp}:R> (<t:${endTimestamp}:F>)`
-    );
-  } else {
-    embed.setDescription(
+  // Same embed always — color, title, and the "Ends" label never change,
+  // even after the giveaway ends. The <t:...:R> tag live-updates on its
+  // own in Discord's client, so it naturally flips from "in 5m" to
+  // "1s ago" to "2 months ago" over time with zero extra code.
+  return new EmbedBuilder()
+    .setColor(0x0000ff)
+    .setTitle(` ${giveaway.prize}`)
+    .setDescription(
       "Click the button below to enter!\n\n" +
       `**Winners:** ${giveaway.winnerCount}\n` +
-      `**Hosted by:** ${giveaway.host}\n` +
-      `**Ends:** <t:${endTimestamp}:R> (<t:${endTimestamp}:F>)`
+      `**Hosted by:** ${giveaway.host}\n\n` +
+      `**Ends:** <t:${endTimestamp}:R>\n\n` +
+      `<t:${endTimestamp}:F>`
     );
-  }
 
   // NOTE: no .setTimestamp() here — that sets Discord's static footer
   // stamp (bottom-right "Today at ..."), which does NOT count down.
   // The <t:...:R> tag above is what live-updates in Discord's client.
-
-  return embed;
 }
 
 function createJoinButton(giveaway) {
@@ -336,7 +329,7 @@ async function endGiveaway(
       );
 
     await originalMessage.edit({
-      embeds: [createGiveawayEmbed(giveaway, true)],
+      embeds: [createGiveawayEmbed(giveaway)],
       components: []
     });
   } catch (error) {
