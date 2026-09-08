@@ -5,7 +5,7 @@ module.exports = {
   transcriptChannelId: "1546682107881988186",
 
   paidAd: {
-    title: "💰 PAID ADVERTISEMENTS",
+    title: "",
 
     message: `# **<a:coins:1538972519950848080> __PAID ADVERTISMENTS__**
 
