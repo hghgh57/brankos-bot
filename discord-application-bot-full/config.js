@@ -1,8 +1,8 @@
 module.exports = {
-  welcomeChannelId: "1438877108452593765",
-  leaveChannelId: "1438877108452593765",
-  applicationChannelId: "1492509675520790598",
-  transcriptChannelId: "1499507598691536896",
+  welcomeChannelId: "1546583079706165449",
+  leaveChannelId: "1546583079706165449",
+  applicationChannelId: "1546629316568158301",
+  transcriptChannelId: "1546682107881988186",
 
   paidAd: {
     title: "💰 PAID ADVERTISEMENTS",
@@ -60,7 +60,7 @@ module.exports = {
       name: "support",
       label: "Support",
       color: 0x0000FF,
-      categoryId: "1510706105490342131",
+      categoryId: "1546612381248000130",
       roleId: "1484216939466461376"
     },
 
@@ -68,7 +68,7 @@ module.exports = {
       name: "bug",
       label: "Bug",
       color: 0xFF0000,
-      categoryId: "1510005087089590402",
+      categoryId: "1546612460436455565",
       roleId: "1533223723182592011"
     },
 
@@ -76,7 +76,7 @@ module.exports = {
       name: "partner",
       label: "Partner",
       color: 0x0000FF,
-      categoryId: "1510706100998111473",
+      categoryId: "1546612282732191745",
       roleId: "1484216939466461376"
     },
 
@@ -84,7 +84,7 @@ module.exports = {
       name: "buy-sell-spawners",
       label: "Buy/Sell Spawners",
       color: 0x0000FF,
-      categoryId: "1510706100998111473",
+      categoryId: "1546612756365705318",
       roleId: "1484216939466461376"
     },
 
@@ -92,7 +92,7 @@ module.exports = {
       name: "sponsor",
       label: "Sponsor",
       color: 0x0000FF,
-      categoryId: "1526976384826736641",
+      categoryId: "1546612524059721758",
       roleId: "1484216939466461376"
     }
   },
