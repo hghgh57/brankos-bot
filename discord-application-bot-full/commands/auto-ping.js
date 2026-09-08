@@ -10,7 +10,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("auto-ping")
     .setDescription(
-      "Set the voice channel for automatic join pings."
+      "Set the text channel where new members get pinged on join."
     )
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ManageGuild
@@ -19,10 +19,10 @@ module.exports = {
       option
         .setName("channel")
         .setDescription(
-          "The voice channel to monitor (pick from the list)."
+          "The text channel to send the join ping in (pick from the list)."
         )
         .addChannelTypes(
-          ChannelType.GuildVoice
+          ChannelType.GuildText
         )
         .setRequired(false)
     )
@@ -30,7 +30,7 @@ module.exports = {
       option
         .setName("channel_id")
         .setDescription(
-          "Or paste a voice channel ID directly."
+          "Or paste a text channel ID directly."
         )
         .setRequired(false)
     ),
@@ -75,10 +75,10 @@ module.exports = {
         });
       }
 
-      if (channel.type !== ChannelType.GuildVoice) {
+      if (channel.type !== ChannelType.GuildText) {
         return interaction.reply({
           content:
-            `❌ ${channel} isn't a voice channel.`,
+            `❌ ${channel} isn't a text channel.`,
           ephemeral: true
         });
       }
