@@ -34,7 +34,6 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(BLUE)
-        .setTitle(config.paidAd.title)
         .setDescription(config.paidAd.message)
         .setTimestamp();
 
