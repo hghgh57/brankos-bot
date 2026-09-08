@@ -18,7 +18,7 @@
 
 const { PermissionsBitField } = require('discord.js');
 
-const GUILD_TAG = 'BNGG';
+const GUILD_TAG = 'BGNG';
 const ROLE_ID = '1496926187572826242';
 
 const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
