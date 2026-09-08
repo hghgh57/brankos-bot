@@ -108,12 +108,17 @@ async function createTicket(interaction, type) {
       error
     );
 
+    // Surface the actual Discord API reason instead of a generic message,
+    // so it's obvious what to fix (bad category ID, missing perms, etc.)
+    const code = error.code ? ` (code ${error.code})` : "";
+    const detail = error.message || "Unknown error";
+
     if (
       !interaction.replied &&
       !interaction.deferred
     ) {
       await interaction.reply({
-        content: "❌ Something went wrong while creating the ticket.",
+        content: `❌ Something went wrong while creating the ticket${code}: ${detail}`,
         ephemeral: true
       }).catch(() => {});
     }
