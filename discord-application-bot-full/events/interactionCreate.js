@@ -3,6 +3,11 @@ const {
   closeTicket,
 } = require('../ticketManager');
 
+const {
+  startApplication,
+  handleApplicationDecision,
+} = require('../applicationManager');
+
 const config = require('../config.js');
 const rootGiveawayManager = require('../giveawayManager');
 
@@ -285,6 +290,42 @@ module.exports = {
 
           if (config.tickets[type]) {
             await createTicket(interaction, type);
+            return;
+          }
+        }
+
+
+        /* =================================================
+           APPLICATION ACCEPT / DENY
+           (buttons on a submitted application in the
+           review channel)
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith('application_accept:') ||
+          interaction.customId.startsWith('application_deny:')
+        ) {
+
+          await handleApplicationDecision(interaction);
+          return;
+        }
+
+
+        /* =================================================
+           APPLICATION PANEL — START APPLICATION
+           (buttons from /application-setup, e.g.
+           "application_staff")
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith('application_')
+        ) {
+
+          const type =
+            interaction.customId.slice('application_'.length);
+
+          if (config.applications[type]) {
+            await startApplication(interaction, type);
             return;
           }
         }
