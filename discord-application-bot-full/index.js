@@ -71,5 +71,25 @@ for (
   }
 }
 
+// Surface any crash instead of leaving the process hanging in a
+// "running but not connected" zombie state (which is why Railway
+// can show the deploy as active while the bot shows offline in Discord).
+process.on("unhandledRejection", (err) => {
+  console.error("❌ Unhandled promise rejection:", err);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("❌ Uncaught exception:", err);
+  process.exit(1);
+});
+
 // Login
-client.login(process.env.TOKEN);
+client.login(process.env.TOKEN).catch((err) => {
+  console.error("❌ Failed to log in to Discord:", err);
+  console.error(
+    "If this says 'Used disallowed intents', go to the Discord " +
+    "Developer Portal → your app → Bot → Privileged Gateway Intents, " +
+    "and enable 'Server Members Intent' and 'Message Content Intent'."
+  );
+  process.exit(1);
+});
