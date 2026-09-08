@@ -4,7 +4,12 @@ const {
   ChannelType
 } = require("discord.js");
 
+const fs = require("fs");
+const path = require("path");
+
 const config = require("../config");
+
+const autoPingFile = path.join(__dirname, "..", "autoping.json");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -85,6 +90,11 @@ module.exports = {
     }
 
     config.autoPingChannelId = channel.id;
+
+    fs.writeFileSync(
+      autoPingFile,
+      JSON.stringify({ channelId: channel.id }, null, 2)
+    );
 
     await interaction.reply({
       content:
