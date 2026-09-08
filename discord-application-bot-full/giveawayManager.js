@@ -806,7 +806,7 @@ async function claimGiveaway(
       await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
-        parent: "1510706103300784240",
+        parent: "1546682658359087167",
         permissionOverwrites:
           permissions
       });
