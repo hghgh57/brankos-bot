@@ -1,4 +1,20 @@
+const fs = require("fs");
+const path = require("path");
+
+const autoPingFile = path.join(__dirname, "autoping.json");
+
+let savedAutoPingChannelId = undefined;
+
+try {
+  const raw = fs.readFileSync(autoPingFile, "utf8");
+  savedAutoPingChannelId = JSON.parse(raw).channelId;
+} catch (error) {
+  // File doesn't exist yet — no auto-ping channel set. That's fine.
+}
+
 module.exports = {
+  autoPingChannelId: savedAutoPingChannelId,
+
   welcomeChannelId: "1546583079706165449",
   leaveChannelId: "1546583079706165449",
   applicationChannelId: "1546629316568158301",
