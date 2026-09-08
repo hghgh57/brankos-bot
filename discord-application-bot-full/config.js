@@ -96,6 +96,14 @@ module.exports = {
       roleId: "1484216939466461376"
     },
 
+    buy_ad: {
+      name: "buy-ad",
+      label: "Buy Ad",
+      color: 0x0000FF,
+      categoryId: "1546870894712848394",
+      roleId: "1533223723182592011"
+    },
+
     // Used by the buttons in commands/service-tickets.js
     // (service_ticket_open_dig_out / service_ticket_open_request_build).
     // Replace these placeholder IDs with a real category + role ID.
@@ -119,7 +127,7 @@ module.exports = {
   applications: {
     staff: {
       name: "Staff Application",
-      emoji: "",
+      emoji: "🛡️",
 
       // Only members with this role can start a Staff Application.
       requiredRoleId: "1500496895586336808",
@@ -158,7 +166,7 @@ module.exports = {
 
     partner: {
       name: "Partner Manager Application",
-      emoji: "",
+      emoji: "🤝",
 
       questions: [
         {
@@ -194,7 +202,7 @@ module.exports = {
 
     builder: {
       name: "Builder Application",
-      emoji: "",
+      emoji: "🏗️",
 
       questions: [
         {
