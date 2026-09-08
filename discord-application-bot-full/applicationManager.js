@@ -3,7 +3,8 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  ComponentType
 } = require("discord.js");
 
 const config = require("./config");
@@ -35,6 +36,22 @@ async function startApplication(interaction, type) {
   }
 
   const user = interaction.user;
+
+  // Gate certain applications (e.g. Staff) behind a required role.
+  if (appConfig.requiredRoleId) {
+    const member = interaction.member;
+
+    if (
+      !member ||
+      !member.roles.cache.has(appConfig.requiredRoleId)
+    ) {
+      return interaction.reply({
+        content:
+          `❌ You need <@&${appConfig.requiredRoleId}> to start a ${appConfig.name}.`,
+        ephemeral: true
+      });
+    }
+  }
 
   if (inProgress.has(user.id)) {
     return interaction.reply({
@@ -77,6 +94,30 @@ async function startApplication(interaction, type) {
     for (const q of appConfig.questions) {
       const questionText =
         typeof q === "string" ? q : q.question;
+
+      const questionType =
+        typeof q === "string" ? "text" : q.type || "text";
+
+      if (questionType === "yesno") {
+        const answer = await askYesNo(
+          dmChannel,
+          user,
+          questionText
+        );
+
+        if (answer === null) {
+          // null = timed out or cancelled; the helper already
+          // sent the relevant message to the user.
+          return;
+        }
+
+        answers.push({
+          question: questionText,
+          answer
+        });
+
+        continue;
+      }
 
       await dmChannel.send(questionText);
 
@@ -122,6 +163,88 @@ async function startApplication(interaction, type) {
   } finally {
     inProgress.delete(user.id);
   }
+}
+
+/* =========================================================
+   ASK A YES/NO QUESTION VIA BUTTONS
+   Returns "Yes" / "No", or null if the user timed out or
+   typed "cancel" (in which case this already messaged them
+   and the caller should stop the application).
+========================================================= */
+
+async function askYesNo(dmChannel, user, questionText) {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("app_yesno_yes")
+      .setLabel("Yes")
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId("app_yesno_no")
+      .setLabel("No")
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const sent = await dmChannel.send({
+    content: questionText,
+    components: [row]
+  });
+
+  // Also allow typing "cancel" instead of pressing a button.
+  const cancelListener = dmChannel
+    .awaitMessages({
+      filter: (m) =>
+        m.author.id === user.id &&
+        m.content.trim().toLowerCase() === "cancel",
+      max: 1,
+      time: QUESTION_TIMEOUT_MS
+    })
+    .then((collected) =>
+      collected && collected.size > 0 ? collected : null
+    )
+    .catch(() => null);
+
+  const buttonListener = sent
+    .awaitMessageComponent({
+      componentType: ComponentType.Button,
+      filter: (btnInteraction) =>
+        btnInteraction.user.id === user.id,
+      time: QUESTION_TIMEOUT_MS
+    })
+    .catch(() => null);
+
+  const result = await Promise.race([
+    cancelListener,
+    buttonListener
+  ]);
+
+  // Disable the buttons either way so old ones can't be clicked later.
+  const disabledRow = new ActionRowBuilder().addComponents(
+    ButtonBuilder.from(row.components[0]).setDisabled(true),
+    ButtonBuilder.from(row.components[1]).setDisabled(true)
+  );
+
+  await sent
+    .edit({ components: [disabledRow] })
+    .catch(() => {});
+
+  if (!result) {
+    await dmChannel.send(
+      "⌛ You took too long to respond. Your application has been cancelled."
+    );
+    return null;
+  }
+
+  // Cancel via typed message.
+  if (!result.customId) {
+    await dmChannel.send("❌ Application cancelled.");
+    return null;
+  }
+
+  // Cancel via button click.
+  await result.deferUpdate().catch(() => {});
+
+  return result.customId === "app_yesno_yes" ? "Yes" : "No";
 }
 
 /* =========================================================
