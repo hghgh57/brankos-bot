@@ -127,7 +127,7 @@ module.exports = {
   applications: {
     staff: {
       name: "Staff Application",
-      emoji: "🛡️",
+      emoji: "",
 
       // Only members with this role can start a Staff Application.
       requiredRoleId: "1500496895586336808",
@@ -166,7 +166,7 @@ module.exports = {
 
     partner: {
       name: "Partner Manager Application",
-      emoji: "🤝",
+      emoji: "",
 
       questions: [
         {
@@ -202,7 +202,7 @@ module.exports = {
 
     builder: {
       name: "Builder Application",
-      emoji: "🏗️",
+      emoji: "",
 
       questions: [
         {
