@@ -101,7 +101,7 @@ module.exports = {
       label: "Buy/Sell Spawners",
       color: 0x0000FF,
       categoryId: "1546612756365705318",
-      roleId: "1484216939466461376"
+      roleId: "1442590696774172764"
     },
 
     sponsor: {
