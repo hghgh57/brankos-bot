@@ -60,7 +60,7 @@ module.exports = {
       name: "support",
       label: "Support",
       color: 0x0000FF,
-      categoryId: "1546612381248000130",
+      categoryId: "1546612524059721758",
       roleId: "1484216939466461376"
     },
 
