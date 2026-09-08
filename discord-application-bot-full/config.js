@@ -121,6 +121,9 @@ module.exports = {
       name: "Staff Application",
       emoji: "🛡️",
 
+      // Only members with this role can start a Staff Application.
+      requiredRoleId: "1500496895586336808",
+
       questions: [
         {
           type: "text",
