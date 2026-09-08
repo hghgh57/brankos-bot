@@ -103,8 +103,8 @@ module.exports = {
       name: "dig-out",
       label: "Dig Out",
       color: 0x0000FF,
-      categoryId: "PUT_CATEGORY_ID_HERE",
-      roleId: "PUT_ROLE_ID_HERE"
+      categoryId: "",
+      roleId: "1500062833939841187"
     },
 
     request_build: {
@@ -112,7 +112,7 @@ module.exports = {
       label: "Request Build",
       color: 0x0000FF,
       categoryId: "PUT_CATEGORY_ID_HERE",
-      roleId: "PUT_ROLE_ID_HERE"
+      roleId: "1500062833939841187"
     }
   },
 
