@@ -66,12 +66,14 @@ async function startApplication(interaction, type) {
   try {
     dmChannel = await user.createDM();
 
-    await dmChannel.send(
-      `**${appConfig.emoji || "📋"} ${appConfig.name}**\n\n` +
-        "I'll ask you a few questions here. Just reply with your answer " +
-        "and I'll move on to the next one.\n\n" +
-        "Type `cancel` at any time to stop the application."
-    );
+    const introEmbed = new EmbedBuilder()
+      .setColor(BLUE)
+      .setTitle("Application Started")
+      .setDescription(
+        "Please answer the questions below, either by clicking on the dropdown menus or sending a message to the bot."
+      );
+
+    await dmChannel.send({ embeds: [introEmbed] });
 
   } catch (error) {
     return interaction.reply({
@@ -91,63 +93,40 @@ async function startApplication(interaction, type) {
   try {
     const answers = [];
 
-    for (const q of appConfig.questions) {
+    // One message that gets edited in place from question to question,
+    // instead of sending a new message per question.
+    let questionMessage = null;
+
+    for (let i = 0; i < appConfig.questions.length; i++) {
+      const q = appConfig.questions[i];
+
       const questionText =
         typeof q === "string" ? q : q.question;
 
       const questionType =
         typeof q === "string" ? "text" : q.type || "text";
 
-      if (questionType === "yesno") {
-        const answer = await askYesNo(
-          dmChannel,
-          user,
-          questionText
-        );
+      const result = await askQuestion({
+        dmChannel,
+        user,
+        appConfig,
+        questionMessage,
+        questionText,
+        questionType,
+        index: i,
+        total: appConfig.questions.length
+      });
 
-        if (answer === null) {
-          // null = timed out or cancelled; the helper already
-          // sent the relevant message to the user.
-          return;
-        }
-
-        answers.push({
-          question: questionText,
-          answer
-        });
-
-        continue;
-      }
-
-      await dmChannel.send(questionText);
-
-      const collected = await dmChannel
-        .awaitMessages({
-          filter: (m) => m.author.id === user.id,
-          max: 1,
-          time: QUESTION_TIMEOUT_MS,
-          errors: ["time"]
-        })
-        .catch(() => null);
-
-      if (!collected || collected.size === 0) {
-        await dmChannel.send(
-          "⌛ You took too long to respond. Your application has been cancelled."
-        );
+      if (result === null) {
+        // Cancelled or timed out; askQuestion already messaged the user.
         return;
       }
 
-      const message = collected.first();
-      const content = message.content.trim();
-
-      if (content.toLowerCase() === "cancel") {
-        await dmChannel.send("❌ Application cancelled.");
-        return;
-      }
+      questionMessage = result.message;
 
       answers.push({
         question: questionText,
-        answer: content || "*No answer provided*"
+        answer: result.answer
       });
     }
 
@@ -166,43 +145,73 @@ async function startApplication(interaction, type) {
 }
 
 /* =========================================================
-   ASK A YES/NO QUESTION VIA BUTTONS
-   Returns "Yes" / "No", or null if the user timed out or
-   typed "cancel" (in which case this already messaged them
-   and the caller should stop the application).
+   ASK ONE QUESTION (TEXT OR YES/NO)
+   Sends (or edits) a single blue embed with a red Cancel
+   button, plus Yes/No buttons for "yesno" questions.
+   Returns { answer, message } or null if the user cancelled
+   or timed out (in which case this already messaged them).
 ========================================================= */
 
-async function askYesNo(dmChannel, user, questionText) {
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("app_yesno_yes")
-      .setLabel("Yes")
-      .setStyle(ButtonStyle.Success),
+async function askQuestion({
+  dmChannel,
+  user,
+  appConfig,
+  questionMessage,
+  questionText,
+  questionType,
+  index,
+  total
+}) {
+  const embed = new EmbedBuilder()
+    .setColor(BLUE)
+    .setTitle(`${appConfig.emoji || "📋"} ${appConfig.name}`)
+    .setDescription(questionText)
+    .setFooter({ text: `Question ${index + 1}/${total}` });
 
+  const buttons = [];
+
+  if (questionType === "yesno") {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId("app_yesno_yes")
+        .setLabel("Yes")
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId("app_yesno_no")
+        .setLabel("No")
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
+
+  buttons.push(
     new ButtonBuilder()
-      .setCustomId("app_yesno_no")
-      .setLabel("No")
+      .setCustomId("app_cancel")
+      .setLabel("Cancel")
       .setStyle(ButtonStyle.Danger)
   );
 
-  const sent = await dmChannel.send({
-    content: questionText,
-    components: [row]
-  });
+  const row = new ActionRowBuilder().addComponents(buttons);
 
-  // Also allow typing "cancel" instead of pressing a button.
-  const cancelListener = dmChannel
-    .awaitMessages({
-      filter: (m) =>
-        m.author.id === user.id &&
-        m.content.trim().toLowerCase() === "cancel",
-      max: 1,
-      time: QUESTION_TIMEOUT_MS
-    })
-    .then((collected) =>
-      collected && collected.size > 0 ? collected : null
-    )
-    .catch(() => null);
+  const payload = { embeds: [embed], components: [row] };
+
+  const sent = questionMessage
+    ? await questionMessage.edit(payload)
+    : await dmChannel.send(payload);
+
+  // Text answers only make sense for "text" questions; yes/no
+  // questions are answered purely via buttons.
+  const messageListener =
+    questionType === "text"
+      ? dmChannel
+          .awaitMessages({
+            filter: (m) => m.author.id === user.id,
+            max: 1,
+            time: QUESTION_TIMEOUT_MS,
+            errors: ["time"]
+          })
+          .catch(() => null)
+      : null;
 
   const buttonListener = sent
     .awaitMessageComponent({
@@ -213,21 +222,24 @@ async function askYesNo(dmChannel, user, questionText) {
     })
     .catch(() => null);
 
-  const result = await Promise.race([
-    cancelListener,
-    buttonListener
-  ]);
+  const listeners = messageListener
+    ? [messageListener, buttonListener]
+    : [buttonListener];
 
-  // Disable the buttons either way so old ones can't be clicked later.
+  const result = await Promise.race(listeners);
+
+  // Disable buttons on the message so the old ones can't be reused;
+  // the next question (or the cancelled/timeout state) will overwrite
+  // this again right after.
   const disabledRow = new ActionRowBuilder().addComponents(
-    ButtonBuilder.from(row.components[0]).setDisabled(true),
-    ButtonBuilder.from(row.components[1]).setDisabled(true)
+    row.components.map((b) =>
+      ButtonBuilder.from(b).setDisabled(true)
+    )
   );
 
-  await sent
-    .edit({ components: [disabledRow] })
-    .catch(() => {});
+  await sent.edit({ components: [disabledRow] }).catch(() => {});
 
+  // Timed out (neither a message nor a button arrived).
   if (!result) {
     await dmChannel.send(
       "⌛ You took too long to respond. Your application has been cancelled."
@@ -235,16 +247,35 @@ async function askYesNo(dmChannel, user, questionText) {
     return null;
   }
 
-  // Cancel via typed message.
-  if (!result.customId) {
+  // A button was clicked (Yes / No / Cancel).
+  if (result.customId) {
+    if (result.customId === "app_cancel") {
+      await result.deferUpdate().catch(() => {});
+      await dmChannel.send("❌ Application cancelled.");
+      return null;
+    }
+
+    await result.deferUpdate().catch(() => {});
+
+    const answer =
+      result.customId === "app_yesno_yes" ? "Yes" : "No";
+
+    return { answer, message: sent };
+  }
+
+  // A text message was sent instead.
+  const message = result.first();
+  const content = message.content.trim();
+
+  if (content.toLowerCase() === "cancel") {
     await dmChannel.send("❌ Application cancelled.");
     return null;
   }
 
-  // Cancel via button click.
-  await result.deferUpdate().catch(() => {});
-
-  return result.customId === "app_yesno_yes" ? "Yes" : "No";
+  return {
+    answer: content || "*No answer provided*",
+    message: sent
+  };
 }
 
 /* =========================================================
