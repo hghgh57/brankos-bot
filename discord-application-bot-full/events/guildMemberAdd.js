@@ -23,16 +23,36 @@ module.exports = {
     });
 
     // Welcome message
-    if (!config.welcomeChannelId) return;
+    if (config.welcomeChannelId) {
+      const channel = member.guild.channels.cache.get(
+        config.welcomeChannelId
+      );
 
-    const channel = member.guild.channels.cache.get(
-      config.welcomeChannelId
+      if (channel) {
+        await channel.send(
+          `𝐇𝐞𝐲 ${member}, 𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐭𝐨 ${member.guild.name}! 🎉`
+        ).catch(console.error);
+      }
+    }
+
+    // Auto-ping in the configured text channel
+    if (!config.autoPingChannelId) return;
+
+    const pingChannel = member.guild.channels.cache.get(
+      config.autoPingChannelId
     );
 
-    if (!channel) return;
+    if (!pingChannel) return;
 
-    await channel.send(
-      `𝐇𝐞𝐲 ${member}, 𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐭𝐨 ${member.guild.name}! 🎉`
-    ).catch(console.error);
+    const pingMessage = await pingChannel
+      .send({ content: `${member}` })
+      .catch(() => null);
+
+    if (!pingMessage) return;
+
+    // Delete the ping after 2 seconds
+    setTimeout(() => {
+      pingMessage.delete().catch(() => {});
+    }, 2000);
   }
 };
