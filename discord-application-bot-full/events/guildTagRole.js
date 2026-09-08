@@ -4,13 +4,19 @@
    Gives a role to members who display this server's tag.
    Removes the role when they remove the tag.
 
-   Discord doesn't reliably send a gateway event when someone
-   changes their server tag (it's an undocumented/inconsistent
-   part of the API), so on top of the real-time "userUpdate"
-   listener below, this file also runs a periodic sweep over
-   every member as a fallback so the role always ends up correct
-   even if the live event never fires.
+   Discord doesn't send a dedicated event for "user changed their
+   server tag" — it comes bundled inside a GUILD_MEMBER_UPDATE
+   payload. discord.js *sometimes* turns that into a "userUpdate"
+   event (only when its internal diff-check notices the nested
+   user object changed), so relying on "userUpdate" alone can miss
+   tag changes. This version listens on BOTH "guildMemberUpdate"
+   (the real, per-guild event the tag change actually rides on)
+   and "userUpdate" (kept for compatibility/coverage), plus keeps
+   the periodic full-member sweep as a last-resort fallback in
+   case neither live event fires for a given member.
 ========================================================= */
+
+const { PermissionsBitField } = require('discord.js');
 
 const GUILD_TAG = 'BNGG';
 const ROLE_ID = '1496926187572826242';
@@ -30,7 +36,7 @@ function findGuildAndRole(client) {
 }
 
 function isUsingTag(user, targetGuildId) {
-  const primaryGuild = user.primaryGuild;
+  const primaryGuild = user?.primaryGuild;
 
   return (
     primaryGuild?.identityEnabled === true &&
@@ -54,9 +60,20 @@ async function applyRoleForMember(member, targetRole) {
   if (usingTag === hasRole) return;
 
   if (!targetRole.editable) {
-    console.error(
-      `[SERVER TAG] I cannot change role ${ROLE_ID}. Make sure my bot role is above it.`
+    const me = member.guild.members.me;
+    const missingPerm = !me?.permissions.has(
+      PermissionsBitField.Flags.ManageRoles
     );
+
+    if (missingPerm) {
+      console.error(
+        `[SERVER TAG] Cannot manage role ${ROLE_ID} — the bot is missing the "Manage Roles" permission.`
+      );
+    } else {
+      console.error(
+        `[SERVER TAG] Cannot manage role ${ROLE_ID} — my highest role must be moved ABOVE that role in Server Settings > Roles (currently my top role is at position ${me?.roles.highest.position}, the target role is at position ${targetRole.position}).`
+      );
+    }
     return;
   }
 
@@ -81,28 +98,23 @@ async function applyRoleForMember(member, targetRole) {
   }
 }
 
-async function syncGuildTagRole(user, client) {
+async function syncMemberById(userId, client) {
   try {
-    if (!user || user.bot) return;
-
-    let targetGuild = null;
-    let targetRole = null;
-
-    ({ guild: targetGuild, role: targetRole } =
-      findGuildAndRole(client));
+    const { guild: targetGuild, role: targetRole } =
+      findGuildAndRole(client);
 
     if (!targetGuild || !targetRole) {
       console.error(
-        `[SERVER TAG] Could not find role ${ROLE_ID}.`
+        `[SERVER TAG] Could not find role ${ROLE_ID} in any guild I'm in — double check the ROLE_ID.`
       );
       return;
     }
 
-    let member = targetGuild.members.cache.get(user.id);
+    let member = targetGuild.members.cache.get(userId);
 
     if (!member) {
       member = await targetGuild.members
-        .fetch(user.id)
+        .fetch(userId)
         .catch(() => null);
     }
 
@@ -122,9 +134,23 @@ async function syncAllMembers(client) {
 
     if (!targetGuild || !targetRole) {
       console.error(
-        `[SERVER TAG] Could not find role ${ROLE_ID}.`
+        `[SERVER TAG] Could not find role ${ROLE_ID} in any guild I'm in — double check the ROLE_ID.`
       );
       return;
+    }
+
+    const me = targetGuild.members.me;
+
+    if (
+      !me?.permissions.has(PermissionsBitField.Flags.ManageRoles)
+    ) {
+      console.error(
+        '[SERVER TAG] I do not have the "Manage Roles" permission in that server — grant it, then restart.'
+      );
+    } else if (!targetRole.editable) {
+      console.error(
+        `[SERVER TAG] My highest role is below "${targetRole.name}". Move my role ABOVE it in Server Settings > Roles or the role add/remove will silently fail.`
+      );
     }
 
     const members = await targetGuild.members.fetch();
@@ -150,12 +176,20 @@ module.exports = {
   name: 'userUpdate',
 
   async execute(oldUser, newUser, client) {
-    await syncGuildTagRole(newUser, client);
+    await syncMemberById(newUser.id, client);
   },
 };
 
-// Periodic fallback sweep, started once the bot is ready.
+// Extra real-time trigger: guildMemberUpdate is the event the tag
+// change actually rides on. Registering it directly here (rather
+// than relying only on the generic "userUpdate" wiring in
+// index.js) catches tag changes that discord.js's userUpdate
+// diff-check misses.
 if (global.client) {
+  global.client.on('guildMemberUpdate', (oldMember, newMember) => {
+    syncMemberById(newMember.id, global.client).catch(console.error);
+  });
+
   global.client.once('ready', () => {
     syncAllMembers(global.client).catch(console.error);
 
