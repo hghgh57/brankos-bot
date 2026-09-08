@@ -94,6 +94,25 @@ module.exports = {
       color: 0x0000FF,
       categoryId: "1546612524059721758",
       roleId: "1484216939466461376"
+    },
+
+    // Used by the buttons in commands/service-tickets.js
+    // (service_ticket_open_dig_out / service_ticket_open_request_build).
+    // Replace these placeholder IDs with a real category + role ID.
+    dig_out: {
+      name: "dig-out",
+      label: "Dig Out",
+      color: 0x0000FF,
+      categoryId: "PUT_CATEGORY_ID_HERE",
+      roleId: "PUT_ROLE_ID_HERE"
+    },
+
+    request_build: {
+      name: "request-build",
+      label: "Request Build",
+      color: 0x0000FF,
+      categoryId: "PUT_CATEGORY_ID_HERE",
+      roleId: "PUT_ROLE_ID_HERE"
     }
   },
 
