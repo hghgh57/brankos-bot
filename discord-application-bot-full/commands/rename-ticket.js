@@ -3,13 +3,12 @@ const {
   PermissionFlagsBits
 } = require("discord.js");
 
+const RENAME_ROLE_ID = "1484216939466461376";
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("rename-ticket")
     .setDescription("Rename the current ticket.")
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageChannels
-    )
     .addStringOption(option =>
       option
         .setName("name")
@@ -19,6 +18,22 @@ module.exports = {
 
   async execute(interaction) {
     const channel = interaction.channel;
+
+    const hasRole = interaction.member.roles.cache.has(
+      RENAME_ROLE_ID
+    );
+    const hasManageChannels =
+      interaction.member.permissions.has(
+        PermissionFlagsBits.ManageChannels
+      );
+
+    if (!hasRole && !hasManageChannels) {
+      return interaction.reply({
+        content:
+          "❌ You do not have permission to use this command.",
+        ephemeral: true
+      });
+    }
 
     const newName =
       interaction.options
