@@ -1,6 +1,7 @@
 const {
   SlashCommandBuilder,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  EmbedBuilder
 } = require("discord.js");
 
 module.exports = {
@@ -35,8 +36,12 @@ module.exports = {
         }
       );
 
+      const embed = new EmbedBuilder()
+        .setColor(0x0000ff)
+        .setDescription(`${channel} has been locked by ${interaction.user}`);
+
       await interaction.reply({
-        content: `🔒 ${channel} has been locked by ${interaction.user}`
+        embeds: [embed]
       });
     } catch (err) {
       console.error("❌ Failed to lock channel:", err);
