@@ -10,6 +10,7 @@ const {
 
 const config = require('../config.js');
 const rootGiveawayManager = require('../giveawayManager');
+const ticTacToeManager = require('../ticTacToeManager');
 
 
 /* =========================================================
@@ -55,6 +56,22 @@ module.exports = {
       ===================================================== */
 
       if (interaction.isButton()) {
+
+        /* =================================================
+           TIC-TAC-TOE MOVE
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith('ttt_')
+        ) {
+
+          await ticTacToeManager.handleMove(
+            interaction
+          );
+
+          return;
+        }
+
 
         if (
           interaction.customId.startsWith('giveaway_claim_')
