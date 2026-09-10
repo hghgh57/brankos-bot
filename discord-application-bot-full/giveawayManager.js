@@ -159,7 +159,8 @@ async function startGiveaway({
   interaction,
   prize,
   winners,
-  duration
+  duration,
+  isRps = false
 }) {
   const durationMs = parseDuration(duration);
 
@@ -195,6 +196,15 @@ async function startGiveaway({
       .toString(36)
       .slice(2, 8)}`;
 
+  // RPS giveaways are always a 2-person duel — the host never picks the
+  // winner count for these, no matter what gets passed in.
+  const winnerCount = isRps ? 2 : winners;
+
+  // baseName keeps the plain prize text around (e.g. for the RPS duel
+  // embed / win message), separate from the "RPS — " prefixed version
+  // shown on the giveaway listing itself.
+  const displayPrize = isRps ? `RPS — ${prize}` : prize;
+
   const giveaway = {
     id: giveawayId,
 
@@ -202,8 +212,10 @@ async function startGiveaway({
     channelId: interaction.channel.id,
     messageId: null,
 
-    prize,
-    winnerCount: winners,
+    prize: displayPrize,
+    baseName: prize,
+    winnerCount,
+    isRps,
 
     hostId: interaction.user.id,
     host: `<@${interaction.user.id}>`,
@@ -249,7 +261,7 @@ async function startGiveaway({
   try {
     await interaction.user.send({
       content:
-        `🎉 Your giveaway for **${prize}** has started in **${interaction.guild.name}**!\n` +
+        `🎉 Your giveaway for **${displayPrize}** has started in **${interaction.guild.name}**!\n` +
         `**Giveaway ID:** \`${giveawayId}\`\n` +
         `Keep this ID — you'll need it to run \`/greroll giveawayid:${giveawayId}\` if you ever need to reroll a winner.`
     });
@@ -491,6 +503,27 @@ async function endGiveaway(
     );
 
   if (!channel) return;
+
+  // RPS giveaways with exactly 2 winners don't get the normal winner
+  // announcement — instead the giveaway message turns into a Rock
+  // Paper Scissors duel between the two of them, and whoever wins
+  // THAT gets the usual win message + Claim button (see
+  // finalizeGiveawayWinner below, called by rpsManager once the duel
+  // ends). If there weren't enough entries for a real duel (0 or 1
+  // entrants), fall through to the normal flow below instead.
+  if (giveaway.isRps && winners.length === 2) {
+    try {
+      // Required lazily to avoid a load-order dependency between the
+      // two files — rpsManager requires giveawayManager at the top of
+      // its file, so this file can't safely require rpsManager at the
+      // top of its own file too.
+      const rpsManager = require("./rpsManager");
+      await rpsManager.startDuel(client, giveaway);
+    } catch (error) {
+      console.error("Could not start RPS duel:", error);
+    }
+    return;
+  }
 
   let winnerText;
 
@@ -911,6 +944,40 @@ async function claimGiveaway(
   });
 }
 
+// Called by rpsManager once the RPS duel has a winner. Sends the same
+// win message + Claim button that a normal giveaway sends, just for
+// the single duel winner instead of the full winner list.
+async function finalizeGiveawayWinner(client, giveawayId, winnerId) {
+  const giveaway = giveaways.get(giveawayId);
+  if (!giveaway) return;
+
+  giveaway.winners = [winnerId];
+
+  const channel = client.channels.cache.get(giveaway.channelId);
+  if (!channel) return;
+
+  const winnerMention = `<@${winnerId}>`;
+
+  const winnerText =
+    `🎉 ${winnerMention} **you won ${giveaway.baseName || giveaway.prize}!**`;
+
+  const claimButton =
+    new ButtonBuilder()
+      .setCustomId(`giveaway_claim_${giveaway.id}`)
+      .setLabel("Claim Prize")
+      .setEmoji("🎁")
+      .setStyle(ButtonStyle.Success);
+
+  const row = new ActionRowBuilder().addComponents(claimButton);
+
+  const winnerMessage = await channel.send({
+    content: winnerText,
+    components: [row]
+  });
+
+  giveaway.winnerMessageId = winnerMessage.id;
+}
+
 function initGiveaways(client) {
   // Giveaway state is kept in-memory only (no DB/file persistence),
   // so there is nothing to restore on restart. This just confirms
@@ -926,5 +993,6 @@ module.exports = {
   joinGiveaway,
   leaveGiveaway,
   claimGiveaway,
-  rerollGiveaway
+  rerollGiveaway,
+  finalizeGiveawayWinner
 };
