@@ -1,6 +1,7 @@
 const {
   SlashCommandBuilder,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  EmbedBuilder
 } = require("discord.js");
 
 module.exports = {
@@ -35,8 +36,12 @@ module.exports = {
         }
       );
 
+      const embed = new EmbedBuilder()
+        .setColor(0x0000ff)
+        .setDescription(`${channel} has been unlocked by ${interaction.user}`);
+
       await interaction.reply({
-        content: "🔓 This channel has been unlocked. Everyone can send messages again."
+        embeds: [embed]
       });
     } catch (err) {
       console.error("❌ Failed to unlock channel:", err);
