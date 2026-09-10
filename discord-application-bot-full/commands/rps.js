@@ -4,7 +4,7 @@ const { startGame } = require("../rpsManager");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("rps duel")
+    .setName("rps-duel")
     .setDescription("Start a rock paper scissors match between two users.")
     .setDefaultMemberPermissions(null)
     .addUserOption(option =>
