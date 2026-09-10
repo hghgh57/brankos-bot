@@ -8,6 +8,7 @@ module.exports = {
 
   async execute(interaction) {
     const content =
+      "**Giveaway Sponsor Tiers**\n\n" +
       "**1M-10M**: <@&1504931998798446764> \n" +
       "**10M-25M**: <@&1515770869517914243> \n" +
       "**25M-50M**: <@&1515770944252149830> \n" +
