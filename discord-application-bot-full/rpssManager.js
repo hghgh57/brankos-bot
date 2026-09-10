@@ -15,6 +15,10 @@ const giveawayManager = require("./giveawayManager");
 const BLUE = 0x0000ff;
 const CHOICES = ["rock", "paper", "scissors"];
 
+// How long each round gives the players to pick before it's decided
+// automatically (single pick = auto-win, no picks = draw).
+const PICK_TIMEOUT_MS = 5 * 60 * 1000;
+
 // Keyed by giveawayId.
 const duels = new Map();
 
@@ -51,20 +55,40 @@ function buildChoiceButtons(duel, disabled = false) {
   return [row];
 }
 
-function buildDuelEmbed(duel, { tie = false, finished = false, winnerId = null } = {}) {
+function buildDuelEmbed(
+  duel,
+  { tie = false, finished = false, winnerId = null, draw = false, timedOut = false } = {}
+) {
   const embed = new EmbedBuilder()
     .setColor(BLUE)
     .setTitle(`Rock Paper Scissors — ${duel.prize}`);
 
-  if (finished) {
-    const p1Choice = capitalize(duel.finalChoices[duel.p1]);
-    const p2Choice = capitalize(duel.finalChoices[duel.p2]);
-
+  if (draw) {
     embed.setDescription(
-      `<@${duel.p1}> chose ${p1Choice}\n` +
-      `<@${duel.p2}> chose ${p2Choice}\n\n` +
-      `**<@${winnerId}> wins the duel!**`
+      `<@${duel.p1}> vs <@${duel.p2}>\n\n` +
+      "**Neither player picked in time — the duel ends in a draw. No prize awarded.**"
     );
+
+    return embed;
+  }
+
+  if (finished) {
+    const choices = duel.finalChoices || duel.choices || {};
+    const p1Choice = choices[duel.p1] ? capitalize(choices[duel.p1]) : "No pick";
+    const p2Choice = choices[duel.p2] ? capitalize(choices[duel.p2]) : "No pick";
+
+    const lines = [
+      `<@${duel.p1}> chose ${p1Choice}`,
+      `<@${duel.p2}> chose ${p2Choice}`,
+      "",
+      `**<@${winnerId}> wins the duel!**`
+    ];
+
+    if (timedOut) {
+      lines.push("-# The other player didn't pick in time.");
+    }
+
+    embed.setDescription(lines.join("\n"));
 
     return embed;
   }
@@ -77,6 +101,7 @@ function buildDuelEmbed(duel, { tie = false, finished = false, winnerId = null }
     "",
     "Both winners must choose Rock, Paper, or Scissors below.",
     "Picks stay hidden until both players have chosen.",
+    "You have 5 minutes to pick each round.",
     "",
     `<@${duel.p1}>: ${p1Status}`,
     `<@${duel.p2}>: ${p2Status}`
@@ -107,6 +132,65 @@ async function updateDuelMessage(client, duel, opts = {}) {
   }
 }
 
+// (Re)arms the 5-minute pick timer for the current round of a duel.
+function armTimeout(client, duel) {
+  if (duel.timeout) {
+    clearTimeout(duel.timeout);
+  }
+
+  duel.timeout = setTimeout(() => {
+    handleTimeout(client, duel).catch(error => {
+      console.error("RPS duel timeout handler error:", error);
+    });
+  }, PICK_TIMEOUT_MS);
+}
+
+// Called 5 minutes after a round starts (or restarts after a tie) if
+// both players still haven't both picked.
+async function handleTimeout(client, duel) {
+  // The duel may have already finished normally in the meantime.
+  if (duels.get(duel.giveawayId) !== duel) return;
+
+  duels.delete(duel.giveawayId);
+
+  const p1Picked = !!duel.choices[duel.p1];
+  const p2Picked = !!duel.choices[duel.p2];
+
+  duel.finalChoices = { ...duel.choices };
+
+  try {
+    const channel = client.channels.cache.get(duel.channelId);
+    if (!channel) return;
+
+    const message = await channel.messages.fetch(duel.messageId);
+
+    // Neither player picked — the duel just dies as a draw.
+    if (!p1Picked && !p2Picked) {
+      await message.edit({
+        content: `⏱️ <@${duel.p1}> and <@${duel.p2}> both failed to pick in time — the duel ends in a draw.`,
+        embeds: [buildDuelEmbed(duel, { draw: true })],
+        components: buildChoiceButtons(duel, true)
+      });
+
+      return;
+    }
+
+    // Exactly one player picked — they win by default.
+    const winnerId = p1Picked ? duel.p1 : duel.p2;
+    const loserId = p1Picked ? duel.p2 : duel.p1;
+
+    await message.edit({
+      content: `⏱️ <@${loserId}> didn't pick in time — <@${winnerId}> wins by default!`,
+      embeds: [buildDuelEmbed(duel, { finished: true, winnerId, timedOut: true })],
+      components: buildChoiceButtons(duel, true)
+    });
+
+    await giveawayManager.finalizeGiveawayWinner(client, duel.giveawayId, winnerId);
+  } catch (error) {
+    console.error("Could not resolve timed-out RPS duel:", error);
+  }
+}
+
 // Called by giveawayManager once a giveaway ends with exactly 2 winners
 // and is flagged isRps. Takes over the original giveaway message and
 // turns it into the duel.
@@ -119,7 +203,8 @@ async function startDuel(client, giveaway) {
     p1: giveaway.winners[0],
     p2: giveaway.winners[1],
     choices: {},
-    finalChoices: null
+    finalChoices: null,
+    timeout: null
   };
 
   duels.set(duel.giveawayId, duel);
@@ -131,15 +216,23 @@ async function startDuel(client, giveaway) {
     const message = await channel.messages.fetch(duel.messageId);
 
     await message.edit({
+      content: `🎉 <@${duel.p1}> <@${duel.p2}> — you both won! Time for a duel.`,
       embeds: [buildDuelEmbed(duel)],
       components: buildChoiceButtons(duel, false)
     });
+
+    armTimeout(client, duel);
   } catch (error) {
     console.error("Could not start RPS duel:", error);
   }
 }
 
 async function finishDuel(client, duel, winnerId) {
+  if (duel.timeout) {
+    clearTimeout(duel.timeout);
+    duel.timeout = null;
+  }
+
   duel.finalChoices = { ...duel.choices };
 
   try {
@@ -212,6 +305,8 @@ async function handleChoice(interaction) {
   if (result === "tie") {
     duel.choices = {};
     await updateDuelMessage(interaction.client, duel, { tie: true });
+    // New round — give them another 5 minutes.
+    armTimeout(interaction.client, duel);
     return;
   }
 
