@@ -4,12 +4,13 @@ const {
 } = require("discord.js");
 
 const { rerollGiveaway } = require("../giveawayManager");
+const config = require("../config");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("greroll")
     .setDescription("Reroll the winner(s) of a giveaway.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .setDefaultMemberPermissions(null)
     .addStringOption(option =>
       option
         .setName("giveawayid")
@@ -25,9 +26,12 @@ module.exports = {
       });
     }
 
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+    const hasPermission = interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
+    const hasStaffRole = interaction.member.roles.cache.has(config.staffRoleId);
+
+    if (!hasPermission && !hasStaffRole) {
       return interaction.reply({
-        content: "❌ You need the Manage Server permission to use this command.",
+        content: "❌ You need the Manage Server permission (or the staff role) to use this command.",
         ephemeral: true
       });
     }
