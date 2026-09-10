@@ -12,6 +12,7 @@ const config = require('../config.js');
 const rootGiveawayManager = require('../giveawayManager');
 const ticTacToeManager = require('../ticTacToeManager');
 const rpsManager = require('../rpsManager');
+const rpssManager = require('../rpssManager');
 
 
 /* =========================================================
@@ -75,14 +76,30 @@ module.exports = {
 
 
         /* =================================================
-           RPS DUEL CHOICE
+           RPS — 1v1 /rps DUEL CHOICE (rpsManager.js)
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith('rps_pick_')
+        ) {
+
+          await rpsManager.handleChoice(
+            interaction
+          );
+
+          return;
+        }
+
+
+        /* =================================================
+           RPS — GIVEAWAY DUEL CHOICE (rpssManager.js)
         ================================================= */
 
         if (
           interaction.customId.startsWith('rps_choice_')
         ) {
 
-          await rpsManager.handleChoice(
+          await rpssManager.handleChoice(
             interaction
           );
 
