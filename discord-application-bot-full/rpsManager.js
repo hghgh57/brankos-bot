@@ -11,9 +11,9 @@ const BLUE = 0x0000ff;
 const games = new Map();
 
 const CHOICES = {
-  rock: { label: "Rock", emoji: "🪨" },
-  paper: { label: "Paper", emoji: "📄" },
-  scissors: { label: "Scissors", emoji: "✂️" }
+  rock: { label: "Rock", emoji: "" },
+  paper: { label: "Paper", emoji: "" },
+  scissors: { label: "Scissors", emoji: "" }
 };
 
 // How long a match can sit unfinished before it's auto-expired.
@@ -57,8 +57,8 @@ function buildWaitingEmbed({ p1Id, p2Id, picks }) {
     .setTitle("Rock Paper Scissors")
     .setDescription(
       `<@${p1Id}> vs <@${p2Id}>\n\n` +
-      `${p1Done ? "✅" : "⏳"} <@${p1Id}> has ${p1Done ? "chosen" : "not chosen yet"}\n` +
-      `${p2Done ? "✅" : "⏳"} <@${p2Id}> has ${p2Done ? "chosen" : "not chosen yet"}\n\n` +
+      `${p1Done ? "" : "⏳"} <@${p1Id}> has ${p1Done ? "chosen" : "not chosen yet"}\n` +
+      `${p2Done ? "" : "⏳"} <@${p2Id}> has ${p2Done ? "chosen" : "not chosen yet"}\n\n` +
       `Choices are hidden until both players pick.`
     );
 }
