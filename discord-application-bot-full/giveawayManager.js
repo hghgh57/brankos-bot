@@ -534,6 +534,13 @@ async function endGiveaway(
         ? `🎉 **${giveaway.prize}**\n\n❌ **No one entered this giveaway.**`
         : `🎉 **${giveaway.prize}**\n\n❌ **Not enough entrants for an RPS duel — need at least 2 joins.**`;
 
+    // The random pick above may have "selected" the lone entrant (or
+    // nobody) as a winner before we knew there weren't enough people
+    // for a real duel. Nobody actually won, so clear it back out —
+    // otherwise createGiveawayEmbed() below sees winners.length > 0
+    // and shows them as "Winner(s)" right under the "no one won" text.
+    giveaway.winners = [];
+
     await channel.send({ content: notEnoughText });
 
     try {
