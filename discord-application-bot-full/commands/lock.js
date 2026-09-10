@@ -36,7 +36,7 @@ module.exports = {
       );
 
       await interaction.reply({
-        content: "🔒 This channel has been locked. Only admins can send messages now."
+        content: `🔒 ${channel} has been locked by ${interaction.user}`
       });
     } catch (err) {
       console.error("❌ Failed to lock channel:", err);
