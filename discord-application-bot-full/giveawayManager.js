@@ -514,14 +514,42 @@ async function endGiveaway(
   if (giveaway.isRps && winners.length === 2) {
     try {
       // Required lazily to avoid a load-order dependency between the
-      // two files — rpsManager requires giveawayManager at the top of
-      // its file, so this file can't safely require rpsManager at the
+      // two files — rpssManager requires giveawayManager at the top of
+      // its file, so this file can't safely require rpssManager at the
       // top of its own file too.
-      const rpsManager = require("./rpsManager");
-      await rpsManager.startDuel(client, giveaway);
+      const rpssManager = require("./rpssManager");
+      await rpssManager.startDuel(client, giveaway);
     } catch (error) {
       console.error("Could not start RPS duel:", error);
     }
+    return;
+  }
+
+  // Not enough entrants to run an RPS duel (0 or 1 people joined).
+  // Don't fall through to the normal "declare a winner" flow below —
+  // an RPS giveaway needs exactly 2 people to duel.
+  if (giveaway.isRps && winners.length < 2) {
+    const notEnoughText =
+      winners.length === 0
+        ? `🎉 **${giveaway.prize}**\n\n❌ **No one entered this giveaway.**`
+        : `🎉 **${giveaway.prize}**\n\n❌ **Not enough entrants for an RPS duel — need at least 2 joins.**`;
+
+    await channel.send({ content: notEnoughText });
+
+    try {
+      const originalMessage = await channel.messages.fetch(giveaway.messageId);
+
+      await originalMessage.edit({
+        embeds: [createGiveawayEmbed(giveaway)],
+        components: [createJoinButton(giveaway, true)]
+      });
+    } catch (error) {
+      console.error(
+        "Could not update the giveaway message after it ended:",
+        error
+      );
+    }
+
     return;
   }
 
