@@ -1,36 +1,21 @@
 const {
   SlashCommandBuilder,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  EmbedBuilder
 } = require("discord.js");
 
-const { startGiveaway } = require("../giveawayManager");
+const config = require("../config");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("gcreate")
-    .setDescription("Start a giveaway.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-    .addStringOption(option =>
+    .setName("ez")
+    .setDescription("Announce a rigged giveaway.")
+    .setDefaultMemberPermissions(null)
+    .addUserOption(option =>
       option
-        .setName("prize")
-        .setDescription("The giveaway prize.")
+        .setName("user")
+        .setDescription("The user the giveaway was rigged for.")
         .setRequired(true)
-        .setMaxLength(256)
-    )
-    .addIntegerOption(option =>
-      option
-        .setName("winners")
-        .setDescription("How many winners.")
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(100)
-    )
-    .addStringOption(option =>
-      option
-        .setName("duration")
-        .setDescription("Examples: 7d, 24h, 30m, 1h")
-        .setRequired(true)
-        .setMaxLength(20)
     ),
 
   async execute(interaction) {
@@ -41,52 +26,30 @@ module.exports = {
       });
     }
 
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+    const hasPermission = interaction.memberPermissions?.has(
+      PermissionFlagsBits.ManageGuild
+    );
+    const hasStaffRole = interaction.member.roles.cache.has(
+      config.staffRoleId
+    );
+
+    if (!hasPermission && !hasStaffRole) {
       return interaction.reply({
-        content: "❌ You need the Manage Server permission to use this command.",
+        content: "❌ You need the Manage Server permission (or the staff role) to use this command.",
         ephemeral: true
       });
     }
 
-    const prize = interaction.options.getString("prize", true).trim();
-    const winners = interaction.options.getInteger("winners", true);
-    const duration = interaction.options.getString("duration", true);
+    const user = interaction.options.getUser("user", true);
 
-    if (!prize) {
-      return interaction.reply({
-        content: "❌ Please provide a giveaway prize.",
-        ephemeral: true
-      });
-    }
+    const embed = new EmbedBuilder()
+      .setColor(0x0000ff)
+      .setDescription(
+        `**Giveaway Rigged!**\nThe next/current/quickdrop has been rigged to ${user} ggz nerd.`
+      );
 
-    let result;
-
-    try {
-      result = await startGiveaway({
-        interaction,
-        prize,
-        winners,
-        duration
-      });
-    } catch (error) {
-      console.error("/gcreate error:", error);
-      return interaction.reply({
-        content: "❌ Failed to start the giveaway. Check the bot console for the error.",
-        ephemeral: true
-      });
-    }
-
-    if (!result.success) {
-      return interaction.reply({
-        content: `❌ ${result.error}`,
-        ephemeral: true
-      });
-    }
-
-    return interaction.reply({
-      content: `✅ Giveaway started!
-**Giveaway ID:** \`${result.giveawayId}\``,
-      ephemeral: true
+    await interaction.reply({
+      embeds: [embed]
     });
   }
 };
