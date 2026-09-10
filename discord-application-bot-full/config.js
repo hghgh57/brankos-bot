@@ -12,6 +12,12 @@ try {
   // File doesn't exist yet — no auto-ping channel set. That's fine.
 }
 
+console.log(
+  savedAutoPingChannelId
+    ? `✅ Loaded auto-ping channel from autoping.json: ${savedAutoPingChannelId}`
+    : "ℹ️ No autoping.json found on startup — no auto-ping channel set yet."
+);
+
 module.exports = {
   autoPingChannelId: savedAutoPingChannelId,
 
