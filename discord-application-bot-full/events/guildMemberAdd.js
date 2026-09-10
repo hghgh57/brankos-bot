@@ -36,19 +36,58 @@ module.exports = {
     }
 
     // Auto-ping in the configured text channel
-    if (!config.autoPingChannelId) return;
+    if (!config.autoPingChannelId) {
+      console.log(
+        "❌ No autoPingChannelId is configured (run /auto-ping)."
+      );
+      return;
+    }
 
-    const pingChannel = member.guild.channels.cache.get(
-      config.autoPingChannelId
+    console.log(
+      `🔎 Looking for auto-ping channel: ${config.autoPingChannelId}`
     );
 
-    if (!pingChannel) return;
+    const pingChannel = await member.guild.channels
+      .fetch(config.autoPingChannelId)
+      .catch(error => {
+        console.error(
+          "❌ Could not fetch auto-ping channel:",
+          error
+        );
+
+        return null;
+      });
+
+    if (!pingChannel) {
+      console.log(
+        `❌ Auto-ping channel ${config.autoPingChannelId} was not found.`
+      );
+      return;
+    }
+
+    if (!pingChannel.isTextBased()) {
+      console.log(
+        `❌ Auto-ping channel ${config.autoPingChannelId} is not text-based.`
+      );
+      return;
+    }
 
     const pingMessage = await pingChannel
       .send({ content: `${member}` })
-      .catch(() => null);
+      .catch(error => {
+        console.error(
+          "❌ Could not send auto-ping message:",
+          error
+        );
+
+        return null;
+      });
 
     if (!pingMessage) return;
+
+    console.log(
+      `✅ Auto-ping sent for ${member.user?.tag || member.id} in #${pingChannel.name}`
+    );
 
     // Delete the ping after 4 seconds
     setTimeout(() => {
