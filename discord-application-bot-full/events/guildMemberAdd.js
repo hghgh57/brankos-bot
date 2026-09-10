@@ -50,9 +50,9 @@ module.exports = {
 
     if (!pingMessage) return;
 
-    // Delete the ping after 3 seconds
+    // Delete the ping after 4 seconds
     setTimeout(() => {
       pingMessage.delete().catch(() => {});
-    }, 3000);
+    }, 4000);
   }
 };
