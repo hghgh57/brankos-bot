@@ -11,6 +11,7 @@ const {
 const config = require('../config.js');
 const rootGiveawayManager = require('../giveawayManager');
 const ticTacToeManager = require('../ticTacToeManager');
+const rpsManager = require('../rpsManager');
 
 
 /* =========================================================
@@ -66,6 +67,22 @@ module.exports = {
         ) {
 
           await ticTacToeManager.handleMove(
+            interaction
+          );
+
+          return;
+        }
+
+
+        /* =================================================
+           ROCK PAPER SCISSORS PICK
+        ================================================= */
+
+        if (
+          interaction.customId.startsWith('rps_pick_')
+        ) {
+
+          await rpsManager.handleChoice(
             interaction
           );
 
