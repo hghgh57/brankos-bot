@@ -15,6 +15,10 @@ try {
 module.exports = {
   autoPingChannelId: savedAutoPingChannelId,
 
+  // Role that, in addition to the normal Discord permission check,
+  // is allowed to use /gcreate, /greroll, /ez, /lock and /unlock.
+  staffRoleId: "1484216939466461376",
+
   welcomeChannelId: "1546583079706165449",
   leaveChannelId: "1546583079706165449",
   applicationChannelId: "1546629316568158301",
