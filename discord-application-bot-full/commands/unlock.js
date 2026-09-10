@@ -4,23 +4,25 @@ const {
   EmbedBuilder
 } = require("discord.js");
 
+const config = require("../config");
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("unlock")
     .setDescription("Unlock this channel so everyone can send messages again.")
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.Administrator
-    ),
+    .setDefaultMemberPermissions(null),
 
   async execute(interaction) {
-    // Extra safety check in case default perms get overridden in server settings
-    if (
-      !interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator
-      )
-    ) {
+    const hasPermission = interaction.memberPermissions?.has(
+      PermissionFlagsBits.Administrator
+    );
+    const hasStaffRole = interaction.member.roles.cache.has(
+      config.staffRoleId
+    );
+
+    if (!hasPermission && !hasStaffRole) {
       return interaction.reply({
-        content: "❌ You need Administrator permission to use this.",
+        content: "❌ You need Administrator permission (or the staff role) to use this.",
         ephemeral: true
       });
     }
