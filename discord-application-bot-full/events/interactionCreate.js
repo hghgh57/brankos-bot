@@ -75,11 +75,11 @@ module.exports = {
 
 
         /* =================================================
-           ROCK PAPER SCISSORS PICK
+           RPS DUEL CHOICE
         ================================================= */
 
         if (
-          interaction.customId.startsWith('rps_pick_')
+          interaction.customId.startsWith('rps_choice_')
         ) {
 
           await rpsManager.handleChoice(
