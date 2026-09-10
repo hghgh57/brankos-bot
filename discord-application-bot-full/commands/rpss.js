@@ -8,7 +8,7 @@ const config = require("../config");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("rps")
+    .setName("rps start")
     .setDescription("Start a Rock Paper Scissors giveaway (2 winners duel it out).")
     .setDefaultMemberPermissions(null)
     .addStringOption(option =>
