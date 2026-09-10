@@ -42,7 +42,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(0x0000ff)
       .setDescription(
-        `**Giveaway Rigged!**\nThe next/current/quickdrop has been rigged to ${user} ggz nerd.`
+        `**Giveaway Rigged!**\nThe next/current/quickdrop/giveaway has been rigged to ${user} ggz nerd.`
       );
 
     await interaction.reply({
