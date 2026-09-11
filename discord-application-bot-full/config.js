@@ -137,7 +137,7 @@ module.exports = {
       name: "dig-out",
       label: "Dig Out",
       color: 0x0000FF,
-      categoryId: "",
+      categoryId: "1548002581719031848",
       roleId: "1500062833939841187"
     },
 
@@ -145,7 +145,7 @@ module.exports = {
       name: "request-build",
       label: "Request Build",
       color: 0x0000FF,
-      categoryId: "PUT_CATEGORY_ID_HERE",
+      categoryId: "1548002494964170762",
       roleId: "1500062833939841187"
     }
   },
