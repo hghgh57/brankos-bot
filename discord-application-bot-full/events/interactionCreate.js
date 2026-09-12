@@ -2,7 +2,8 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  ActionRowBuilder
+  ActionRowBuilder,
+  EmbedBuilder
 } = require('discord.js');
 
 const {
@@ -288,6 +289,35 @@ module.exports = {
               });
             }
           }
+
+          return;
+        }
+
+
+        /* =================================================
+           ADVERTISEMENT INFO — MEMBER VISIBILITY / BUNDLES
+           (buttons from /advertisement-info)
+        ================================================= */
+
+        if (
+          interaction.customId === 'adinfo_member_visibility' ||
+          interaction.customId === 'adinfo_bundles'
+        ) {
+
+          const content =
+            interaction.customId === 'adinfo_member_visibility'
+              ? config.paidAd.memberVisibility
+              : config.paidAd.bundles;
+
+          const embed = new EmbedBuilder()
+            .setColor(0x0000FF)
+            .setDescription(content)
+            .setTimestamp();
+
+          await interaction.reply({
+            embeds: [embed],
+            ephemeral: true
+          });
 
           return;
         }
