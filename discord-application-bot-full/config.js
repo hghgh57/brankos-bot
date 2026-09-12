@@ -90,7 +90,27 @@ module.exports = {
 -# save 2,50€!
 ### Netherite bundle
 - **@everyone + 14d Custom Channel + Nitro Premium = \`20€\`**
--# save 6€!`
+-# save 6€!`,
+
+    // Shown ephemerally (only to the clicker) by the Guaranteed
+    // Members/Joins button on /advertisement-info.
+    guaranteedMembers: `## <:Member:1525939049561592088>  • Guaranteed Members/Joins
+
+## <a:Blue_arrow:1519375091568476271> Joins
+- **50 Joins = \`4€\`**
+- **100 Joins = \`7€\`**
+- **250 Joins = \`17€\`**
+- **500 Joins = \`30€\`**
+-# join counts when someone joins and even if they leave)
+
+## <a:Blue_arrow:1519375091568476271> Members
+- **100Members = \`10€\`**
+- **250Members = \`22.5€\`**
+- **500Members = \`40€\`**
+-# (counts only when the member stays in server)
+
+-# **This ad is up until your Guaranteed Members/Joins are done!**
+-# **These members are not botted!!!**`
   },
 
   tickets: {
