@@ -130,7 +130,7 @@ async function createTicket(interaction, type) {
   }
 }
 
-async function closeTicket(interaction) {
+async function closeTicket(interaction, reason = null) {
   try {
     const channel = interaction.channel;
 
@@ -195,7 +195,8 @@ async function closeTicket(interaction) {
             `Ticket Closed — ${channel.name}`
           )
           .setDescription(
-            `Ticket closed by ${interaction.user}.`
+            `Ticket closed by ${interaction.user}.` +
+              (reason ? `\n**Reason:** ${reason}` : "")
           )
           .setTimestamp();
 
@@ -232,7 +233,8 @@ async function closeTicket(interaction) {
 
         await user.send({
           content:
-            `Here's the transcript for your ticket **${channel.name}**, closed by ${interaction.user.tag}.`,
+            `Here's the transcript for your ticket **${channel.name}**, closed by ${interaction.user.tag}.` +
+              (reason ? `\n**Reason:** ${reason}` : ""),
           files: [
             {
               attachment: Buffer.from(
