@@ -1,4 +1,11 @@
 const {
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder
+} = require('discord.js');
+
+const {
   createTicket,
   closeTicket,
 } = require('../ticketManager');
@@ -295,9 +302,22 @@ module.exports = {
           'ticket_close'
         ) {
 
-          await closeTicket(
-            interaction
+          const modal = new ModalBuilder()
+            .setCustomId('ticket_close_modal')
+            .setTitle('Close Ticket');
+
+          const reasonInput = new TextInputBuilder()
+            .setCustomId('reason')
+            .setLabel('Reason (optional)')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+            .setMaxLength(500);
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(reasonInput)
           );
+
+          await interaction.showModal(modal);
 
           return;
         }
@@ -379,6 +399,36 @@ module.exports = {
             await startApplication(interaction, type);
             return;
           }
+        }
+
+      }
+
+
+      /* =====================================================
+         MODALS
+      ===================================================== */
+
+      if (interaction.isModalSubmit()) {
+
+        /* =================================================
+           TICKET CLOSE — REASON MODAL SUBMIT
+        ================================================= */
+
+        if (
+          interaction.customId ===
+          'ticket_close_modal'
+        ) {
+
+          const reason = interaction.fields
+            .getTextInputValue('reason')
+            .trim();
+
+          await closeTicket(
+            interaction,
+            reason || null
+          );
+
+          return;
         }
 
       }
