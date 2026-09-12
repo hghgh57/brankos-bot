@@ -7,12 +7,59 @@ const {
   PermissionsBitField
 } = require("discord.js");
 
+const fs = require("fs");
+const path = require("path");
+
 const config = require("./config");
 
 const giveaways = new Map();
 
 // Role that gets pinged (and given access) whenever someone claims a giveaway win.
 const CLAIM_PING_ROLE_ID = "1484216939466461376";
+
+// Giveaways are kept in-memory for speed, but mirrored to disk so an app
+// restart / redeploy (or editing this file) doesn't wipe out giveaways
+// that are still running. Every mutation below calls saveGiveaways().
+const DATA_FILE = path.join(__dirname, "giveaways.json");
+
+function serializeGiveaway(giveaway) {
+  return {
+    ...giveaway,
+    entries: [...giveaway.entries],
+    claimed: [...giveaway.claimed],
+    // Timers/intervals aren't serializable and get rebuilt on load.
+    refreshInterval: undefined
+  };
+}
+
+function saveGiveaways() {
+  try {
+    const plain = {};
+
+    for (const [id, giveaway] of giveaways) {
+      plain[id] = serializeGiveaway(giveaway);
+    }
+
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify(plain, null, 2)
+    );
+  } catch (error) {
+    console.error("Could not save giveaways to disk:", error);
+  }
+}
+
+function loadGiveawaysFromDisk() {
+  try {
+    if (!fs.existsSync(DATA_FILE)) return {};
+
+    const raw = fs.readFileSync(DATA_FILE, "utf8");
+    return raw.trim() ? JSON.parse(raw) : {};
+  } catch (error) {
+    console.error("Could not load giveaways from disk:", error);
+    return {};
+  }
+}
 
 // setTimeout only accepts a 32-bit signed int (~24.8 days) before it overflows
 // and fires immediately. Since giveaways can run up to 30 days, we chain
@@ -248,6 +295,8 @@ async function startGiveaway({
     giveaway
   );
 
+  saveGiveaways();
+
   scheduleTimeout(() => {
     endGiveaway(
       interaction.client,
@@ -322,6 +371,8 @@ async function joinGiveaway(
   giveaway.entries.add(
     interaction.user.id
   );
+
+  saveGiveaways();
 
   try {
     const channel =
@@ -407,6 +458,8 @@ async function leaveGiveaway(
   giveaway.entries.delete(
     interaction.user.id
   );
+
+  saveGiveaways();
 
   try {
     const channel =
@@ -497,6 +550,8 @@ async function endGiveaway(
 
   giveaway.winners = winners;
 
+  saveGiveaways();
+
   const channel =
     client.channels.cache.get(
       giveaway.channelId
@@ -504,14 +559,30 @@ async function endGiveaway(
 
   if (!channel) return;
 
-  // RPS giveaways with exactly 2 winners don't get the normal winner
-  // announcement — instead the giveaway message turns into a Rock
-  // Paper Scissors duel between the two of them, and whoever wins
-  // THAT gets the usual win message + Claim button (see
-  // finalizeGiveawayWinner below, called by rpsManager once the duel
-  // ends). If there weren't enough entries for a real duel (0 or 1
-  // entrants), fall through to the normal flow below instead.
+  // RPS giveaways with exactly 2 winners still get the normal ending
+  // treatment first — the original giveaway message updates to show the
+  // two winners and who hosted it, same as any other giveaway, with the
+  // Join button disabled. Only after that does the RPS duel get sent as
+  // its own new message, pinging both winners (see startDuel below). If
+  // there weren't enough entries for a real duel (0 or 1 entrants), fall
+  // through to the normal flow below instead.
   if (giveaway.isRps && winners.length === 2) {
+    try {
+      const originalMessage = await channel.messages.fetch(
+        giveaway.messageId
+      );
+
+      await originalMessage.edit({
+        embeds: [createGiveawayEmbed(giveaway)],
+        components: [createJoinButton(giveaway, true)]
+      });
+    } catch (error) {
+      console.error(
+        "Could not update the giveaway message before starting the RPS duel:",
+        error
+      );
+    }
+
     try {
       // Required lazily to avoid a load-order dependency between the
       // two files — rpssManager requires giveawayManager at the top of
@@ -540,6 +611,8 @@ async function endGiveaway(
     // otherwise createGiveawayEmbed() below sees winners.length > 0
     // and shows them as "Winner(s)" right under the "no one won" text.
     giveaway.winners = [];
+
+    saveGiveaways();
 
     await channel.send({ content: notEnoughText });
 
@@ -601,6 +674,8 @@ async function endGiveaway(
   });
 
   giveaway.winnerMessageId = winnerMessage.id;
+
+  saveGiveaways();
 
   // Keep the original giveaway message up (with the final embed and a
   // disabled join button) instead of stripping its components away.
@@ -684,6 +759,8 @@ async function rerollGiveaway(
 
   giveaway.winners = newWinners;
   giveaway.claimed = new Set();
+
+  saveGiveaways();
 
   const winnerMentions =
     newWinners
@@ -895,6 +972,8 @@ async function claimGiveaway(
     interaction.user.id
   );
 
+  saveGiveaways();
+
   await interaction.editReply({
     content:
       `✅ **Ticket created!**\nYour giveaway claim ticket has been created: ${ticketChannel}`,
@@ -988,6 +1067,8 @@ async function finalizeGiveawayWinner(client, giveawayId, winnerId) {
 
   giveaway.winners = [winnerId];
 
+  saveGiveaways();
+
   const channel = client.channels.cache.get(giveaway.channelId);
   if (!channel) return;
 
@@ -1011,14 +1092,53 @@ async function finalizeGiveawayWinner(client, giveawayId, winnerId) {
   });
 
   giveaway.winnerMessageId = winnerMessage.id;
+
+  saveGiveaways();
 }
 
-function initGiveaways(client) {
-  // Giveaway state is kept in-memory only (no DB/file persistence),
-  // so there is nothing to restore on restart. This just confirms
-  // the manager is ready once the client is logged in.
+// Restores giveaways from disk on startup so an app restart / redeploy
+// (or editing giveawayManager.js) doesn't kill giveaways that were still
+// running: entries/claimed come back as Sets, still-running giveaways get
+// their end timer + countdown refresh re-armed (ending immediately if
+// their time already passed while the bot was offline), and already-ended
+// ones just get restored as-is so /greroll and Claim buttons keep working.
+async function initGiveaways(client) {
+  const stored = loadGiveawaysFromDisk();
+  const ids = Object.keys(stored);
+
+  for (const id of ids) {
+    const data = stored[id];
+
+    const giveaway = {
+      ...data,
+      entries: new Set(data.entries || []),
+      claimed: new Set(data.claimed || []),
+      refreshInterval: null
+    };
+
+    giveaways.set(id, giveaway);
+
+    if (giveaway.winners.length > 0) {
+      // Already ended before restart — nothing to schedule, just keep
+      // it around so claim/reroll still work.
+      continue;
+    }
+
+    const remaining = giveaway.endTime - Date.now();
+
+    if (remaining <= 0) {
+      endGiveaway(client, id).catch(console.error);
+    } else {
+      scheduleTimeout(() => {
+        endGiveaway(client, id).catch(console.error);
+      }, remaining);
+
+      startCountdownRefresh(client, id);
+    }
+  }
+
   console.log(
-    `✅ Giveaway manager initialized (${giveaways.size} active giveaways).`
+    `✅ Giveaway manager initialized (${giveaways.size} active giveaways restored).`
   );
 }
 
