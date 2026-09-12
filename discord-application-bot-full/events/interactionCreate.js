@@ -301,13 +301,16 @@ module.exports = {
 
         if (
           interaction.customId === 'adinfo_member_visibility' ||
-          interaction.customId === 'adinfo_bundles'
+          interaction.customId === 'adinfo_bundles' ||
+          interaction.customId === 'adinfo_guaranteed_members'
         ) {
 
           const content =
             interaction.customId === 'adinfo_member_visibility'
               ? config.paidAd.memberVisibility
-              : config.paidAd.bundles;
+              : interaction.customId === 'adinfo_guaranteed_members'
+                ? config.paidAd.guaranteedMembers
+                : config.paidAd.bundles;
 
           const embed = new EmbedBuilder()
             .setColor(0x0000FF)
