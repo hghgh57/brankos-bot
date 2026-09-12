@@ -67,7 +67,30 @@ module.exports = {
 > - **No Refunds**
 > - **If your server breaks Donut Rules or Discord Terms of Service, your ad will be removed (or won't be posted).**
 > - **Once your ad is approved and posted, you cannot change the text, ping, or the ad without prior approval.**
-> - **Payment goes through <@1253357195479748678> __ONLY__**`
+> - **Payment goes through <@1253357195479748678> __ONLY__**`,
+
+    // Shown ephemerally (only to the clicker) by the Member Visibility
+    // button on /advertisement-info.
+    memberVisibility: `## <:1513266373743218818:1531297976314630214>  • Member Visibility
+- **50 Member Visibility: \`1,00€\`**
+- **100 Member Visibility: \`1,75€\`**
+- **250 Member Visibility: \`4,25€\`**
+- **500 Member Visibility: \`8,50€\`**
+-# when member joins the server they recieve a dm with your server ad`,
+
+    // Shown ephemerally (only to the clicker) by the Bundles button on
+    // /advertisement-info.
+    bundles: `## <:Box:1548317902283870268>  • Bundles
+
+### Golden bundle
+- **@everyone + 7d Custom Channel  = \`8€\`**
+-# save 1€!
+### Diamond bundle
+- **@everyone + 4d Custom Channel + Nitro Premium  = \`15€\`**
+-# save 2,50€!
+### Netherite bundle
+- **@everyone + 14d Custom Channel + Nitro Premium = \`20€\`**
+-# save 6€!`
   },
 
   tickets: {
