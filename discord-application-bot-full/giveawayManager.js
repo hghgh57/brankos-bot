@@ -20,7 +20,23 @@ const CLAIM_PING_ROLE_ID = "1484216939466461376";
 // Giveaways are kept in-memory for speed, but mirrored to disk so an app
 // restart / redeploy (or editing this file) doesn't wipe out giveaways
 // that are still running. Every mutation below calls saveGiveaways().
-const DATA_FILE = path.join(__dirname, "giveaways.json");
+//
+// IMPORTANT on Railway (and similar hosts): the app's own folder is
+// wiped and rebuilt fresh on every deploy, so a file saved next to this
+// script would get lost on every update. Set the DATA_DIR environment
+// variable to a path inside a Railway Volume (Settings → Volumes) and
+// this will save there instead, surviving deploys. Falls back to this
+// folder if DATA_DIR isn't set (fine for local/VPS use where the folder
+// itself persists).
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+
+try {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+} catch (error) {
+  console.error("Could not create giveaway data directory:", error);
+}
+
+const DATA_FILE = path.join(DATA_DIR, "giveaways.json");
 
 function serializeGiveaway(giveaway) {
   return {
@@ -952,6 +968,11 @@ async function claimGiveaway(
         name: channelName,
         type: ChannelType.GuildText,
         parent: "1546682658359087167",
+        // Same "ticket:<type>:<userId>" format regular tickets use, so
+        // /ticket-close, /ticket-add, and /rename-ticket all recognize
+        // this as a ticket instead of saying "this only works in a
+        // ticket".
+        topic: `ticket:giveaway:${interaction.user.id}`,
         permissionOverwrites:
           permissions
       });
