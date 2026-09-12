@@ -45,7 +45,7 @@ module.exports = {
 ### Weekend Prices:
 - **@here = \`2,00€\`**
 - **<@&1438912689186406411> = \`3,50€\` (everyone except famous people)**
-- **@everyone = \`4,00€\` (pings famous people like <@884056543576866886>, <@988883385332170872>, <@944232264856928256>, <@1389443504673128448>)**
+- **@everyone = \`4,00€\` (pings famous people like <@884056543576866886>, <@988883385332170872>, <@944232264856928256>, <@1126535625370259486>  and others!)**
 
 ## <a:giftbox:1538973596817297438> • Addons (Recommended)
 - **<a:6635paymentnitroclassic:1510636974657114112> Nitro Basic: \`4€\`**
@@ -59,9 +59,8 @@ module.exports = {
 > -# for custom amount of days it is \`1€\` per day
 
 ## **<:Cash:1538963818951217312> • __Payment Methods__**
-
-> - **PayPal <:Paypal:1531290414009684129>**
-> - **Crypto <:Crypto:1525835017836826665>**
+- **PayPal <:Paypal:1531290414009684129>**
+- **Crypto <:Crypto:1525835017836826665>**
 **All Fees must be covered by you**
 
 > # <:Rules:1538176205063192606> Rules:
