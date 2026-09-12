@@ -147,6 +147,19 @@ module.exports = {
       color: 0x0000FF,
       categoryId: "1548002494964170762",
       roleId: "1484216939466461376"
+    },
+
+    // Used by giveawayManager.js when a giveaway winner claims their prize.
+    // categoryId isn't used there (the claim ticket's category is set
+    // directly in giveawayManager.js) — this entry exists so /ticket-close,
+    // /ticket-add, and /rename-ticket recognize claim tickets as tickets
+    // and know which role can manage them.
+    giveaway: {
+      name: "giveaway-claim",
+      label: "Giveaway Claim",
+      color: 0x0000FF,
+      categoryId: "1546682658359087167",
+      roleId: "1484216939466461376"
     }
   },
 
