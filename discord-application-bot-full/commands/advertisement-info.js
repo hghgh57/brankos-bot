@@ -31,6 +31,12 @@ module.exports = {
         .setStyle(ButtonStyle.Primary),
 
       new ButtonBuilder()
+        .setCustomId("adinfo_guaranteed_members")
+        .setLabel("Guaranteed Members/Joins")
+        .setEmoji("<:Member:1525939049561592088>")
+        .setStyle(ButtonStyle.Primary),
+
+      new ButtonBuilder()
         .setCustomId("adinfo_bundles")
         .setLabel("Bundles")
         .setEmoji("<:Box:1548317902283870268>")
