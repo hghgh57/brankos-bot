@@ -43,9 +43,14 @@ module.exports = {
         .setStyle(ButtonStyle.Success)
     );
 
-    await interaction.reply({
+    await interaction.channel.send({
       embeds: [embed],
       components: [row]
+    });
+
+    await interaction.reply({
+      content: "Sent!",
+      ephemeral: true
     });
   }
 };
