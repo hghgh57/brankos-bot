@@ -42,8 +42,8 @@ module.exports = {
 
     if (
       !channel ||
-      !channel.topic ||
-      !channel.topic.startsWith("ticket:")
+      (!channel.topic || !channel.topic.startsWith("ticket:")) &&
+        !channel.name?.startsWith("giveaway-claim-")
     ) {
       return interaction.reply({
         content:
