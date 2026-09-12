@@ -5,6 +5,9 @@ const {
   ButtonStyle
 } = require("discord.js");
 
+const fs = require("fs");
+const path = require("path");
+
 // giveawayManager is required lazily inside functions (not at the top of
 // this file) purely as a style match with giveawayManager's own lazy
 // require of this file — either order works fine here since there's no
@@ -21,6 +24,49 @@ const PICK_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Keyed by giveawayId.
 const duels = new Map();
+
+// Same idea as giveawayManager's persistence: mirror in-progress duels to
+// disk so an app restart / redeploy doesn't strand a duel mid-round.
+const DATA_FILE = path.join(__dirname, "rps-duels.json");
+
+function serializeDuel(duel) {
+  return {
+    ...duel,
+    // The live timeout handle isn't serializable; expiresAt (an absolute
+    // timestamp, set whenever the timer is armed) is what lets us restore
+    // the correct remaining time after a restart.
+    timeout: undefined
+  };
+}
+
+function saveDuels() {
+  try {
+    const plain = {};
+
+    for (const [id, duel] of duels) {
+      plain[id] = serializeDuel(duel);
+    }
+
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify(plain, null, 2)
+    );
+  } catch (error) {
+    console.error("Could not save RPS duels to disk:", error);
+  }
+}
+
+function loadDuelsFromDisk() {
+  try {
+    if (!fs.existsSync(DATA_FILE)) return {};
+
+    const raw = fs.readFileSync(DATA_FILE, "utf8");
+    return raw.trim() ? JSON.parse(raw) : {};
+  } catch (error) {
+    console.error("Could not load RPS duels from disk:", error);
+    return {};
+  }
+}
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -132,17 +178,23 @@ async function updateDuelMessage(client, duel, opts = {}) {
   }
 }
 
-// (Re)arms the 5-minute pick timer for the current round of a duel.
-function armTimeout(client, duel) {
+// (Re)arms the pick timer for the current round of a duel. Takes an
+// explicit delay (defaulting to the full 5 minutes) so a restored duel
+// can be re-armed with only its remaining time instead of a full fresh
+// window.
+function armTimeout(client, duel, delay = PICK_TIMEOUT_MS) {
   if (duel.timeout) {
     clearTimeout(duel.timeout);
   }
+
+  duel.expiresAt = Date.now() + delay;
+  saveDuels();
 
   duel.timeout = setTimeout(() => {
     handleTimeout(client, duel).catch(error => {
       console.error("RPS duel timeout handler error:", error);
     });
-  }, PICK_TIMEOUT_MS);
+  }, delay);
 }
 
 // Called 5 minutes after a round starts (or restarts after a tie) if
@@ -152,6 +204,7 @@ async function handleTimeout(client, duel) {
   if (duels.get(duel.giveawayId) !== duel) return;
 
   duels.delete(duel.giveawayId);
+  saveDuels();
 
   const p1Picked = !!duel.choices[duel.p1];
   const p2Picked = !!duel.choices[duel.p2];
@@ -192,34 +245,39 @@ async function handleTimeout(client, duel) {
 }
 
 // Called by giveawayManager once a giveaway ends with exactly 2 winners
-// and is flagged isRps. Takes over the original giveaway message and
-// turns it into the duel.
+// and is flagged isRps. By this point the original giveaway message has
+// already been updated to show the winners/host with a disabled Join
+// button, same as a normal giveaway — this sends the duel as its own new
+// message, pinging both winners.
 async function startDuel(client, giveaway) {
   const duel = {
     giveawayId: giveaway.id,
     channelId: giveaway.channelId,
-    messageId: giveaway.messageId,
+    messageId: null,
     prize: giveaway.baseName || giveaway.prize,
     p1: giveaway.winners[0],
     p2: giveaway.winners[1],
     choices: {},
     finalChoices: null,
-    timeout: null
+    timeout: null,
+    expiresAt: null
   };
 
   duels.set(duel.giveawayId, duel);
+  saveDuels();
 
   try {
     const channel = client.channels.cache.get(duel.channelId);
     if (!channel) return;
 
-    const message = await channel.messages.fetch(duel.messageId);
-
-    await message.edit({
+    const duelMessage = await channel.send({
       content: `🎉 <@${duel.p1}> <@${duel.p2}> — you both won! Time for a duel.`,
       embeds: [buildDuelEmbed(duel)],
       components: buildChoiceButtons(duel, false)
     });
+
+    duel.messageId = duelMessage.id;
+    saveDuels();
 
     armTimeout(client, duel);
   } catch (error) {
@@ -250,6 +308,7 @@ async function finishDuel(client, duel, winnerId) {
   }
 
   duels.delete(duel.giveawayId);
+  saveDuels();
 
   // Hand off to giveawayManager to send the normal giveaway win message
   // (with the Claim button) for the duel winner.
@@ -287,6 +346,7 @@ async function handleChoice(interaction) {
   }
 
   duel.choices[interaction.user.id] = choice;
+  saveDuels();
 
   await interaction.reply({
     content: `You chose ${capitalize(choice)}. Waiting on the other player if they haven't picked yet.`,
@@ -314,7 +374,40 @@ async function handleChoice(interaction) {
   await finishDuel(interaction.client, duel, winnerId);
 }
 
+// Restores in-progress duels from disk on startup so an app restart /
+// redeploy doesn't strand two winners mid-duel. Each duel's timeout is
+// re-armed with whatever time was actually left (ending immediately, as
+// a timeout would, if that time already passed while offline).
+function initDuels(client) {
+  const stored = loadDuelsFromDisk();
+  const ids = Object.keys(stored);
+
+  for (const id of ids) {
+    const duel = { ...stored[id], timeout: null };
+    duels.set(id, duel);
+
+    const remaining = (duel.expiresAt || 0) - Date.now();
+
+    if (remaining <= 0) {
+      handleTimeout(client, duel).catch(error => {
+        console.error("RPS duel timeout handler error:", error);
+      });
+    } else {
+      duel.timeout = setTimeout(() => {
+        handleTimeout(client, duel).catch(error => {
+          console.error("RPS duel timeout handler error:", error);
+        });
+      }, remaining);
+    }
+  }
+
+  console.log(
+    `✅ RPS duel manager initialized (${duels.size} active duels restored).`
+  );
+}
+
 module.exports = {
   startDuel,
-  handleChoice
+  handleChoice,
+  initDuels
 };
