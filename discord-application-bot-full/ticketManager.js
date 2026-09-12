@@ -1,6 +1,7 @@
 const {
   ChannelType,
   PermissionFlagsBits,
+  OverwriteType,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -210,6 +211,52 @@ async function closeTicket(interaction) {
           }
         ]
       });
+    }
+
+    // DM the transcript to everyone who had explicit access to this
+    // ticket — the opener, plus anyone added later via /ticket-add.
+    // Access granted through a role (e.g. the staff role) doesn't count
+    // here, only per-member overwrites, since that's specifically who
+    // this ticket was for.
+    const memberOverwrites = channel.permissionOverwrites.cache.filter(
+      overwrite =>
+        overwrite.type === OverwriteType.Member &&
+        overwrite.id !== interaction.client.user.id
+    );
+
+    const failedDms = [];
+
+    for (const overwrite of memberOverwrites.values()) {
+      try {
+        const user = await interaction.client.users.fetch(overwrite.id);
+
+        await user.send({
+          content:
+            `Here's the transcript for your ticket **${channel.name}**, closed by ${interaction.user.tag}.`,
+          files: [
+            {
+              attachment: Buffer.from(
+                transcript || "No messages found.",
+                "utf8"
+              ),
+              name: `${channel.name}.txt`
+            }
+          ]
+        });
+      } catch (error) {
+        failedDms.push(`<@${overwrite.id}>`);
+      }
+    }
+
+    if (
+      failedDms.length > 0 &&
+      transcriptChannel &&
+      transcriptChannel.isTextBased()
+    ) {
+      await transcriptChannel.send({
+        content:
+          `⚠️ Could not DM the transcript to: ${failedDms.join(", ")} (their DMs may be closed).`
+      }).catch(() => {});
     }
 
     await channel.delete();
