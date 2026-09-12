@@ -20,7 +20,12 @@ module.exports = {
   async execute(interaction) {
     const channel = interaction.channel;
 
-    if (!channel || !channel.topic || !channel.topic.startsWith("ticket:")) {
+    const isTicket =
+      channel &&
+      ((channel.topic && channel.topic.startsWith("ticket:")) ||
+        channel.name?.startsWith("giveaway-claim-"));
+
+    if (!isTicket) {
       return interaction.reply({
         content: "❌ This command can only be used inside a ticket.",
         ephemeral: true
@@ -30,8 +35,12 @@ module.exports = {
     // The ticket's topic looks like "ticket:<type>:<userId>" — pull the
     // type out so the role assigned to that specific ticket category
     // (e.g. the bug-report role for a bug ticket) can also add people,
-    // same as /ticket-close does.
-    const ticketType = channel.topic.split(":")[1];
+    // same as /ticket-close does. Older giveaway claim tickets (created
+    // before topics were added to them) fall back to the "giveaway"
+    // ticket type by channel name.
+    const ticketType = channel.topic
+      ? channel.topic.split(":")[1]
+      : "giveaway";
     const ticketRoleId = config.tickets[ticketType]?.roleId;
 
     const hasPermission = interaction.memberPermissions?.has(
