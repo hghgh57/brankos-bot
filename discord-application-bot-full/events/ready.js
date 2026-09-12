@@ -1,4 +1,5 @@
 const { initGiveaways } = require("../giveawayManager");
+const { initDuels } = require("../rpssManager");
 
 module.exports = {
   name: "ready",
@@ -26,7 +27,8 @@ module.exports = {
     }
 
     updateMemberCount(client);
-    initGiveaways(client);
+    await initGiveaways(client);
+    initDuels(client);
   }
 };
 
