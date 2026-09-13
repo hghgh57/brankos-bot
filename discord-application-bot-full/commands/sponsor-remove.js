@@ -9,7 +9,6 @@ const {
   parseAmount,
   formatAmount,
   subtractSponsorAmount,
-  getTierForTotal,
   getQualifyingTiers
 } = require("../sponsorManager");
 
@@ -67,13 +66,12 @@ module.exports = {
     }
 
     const newTotal = subtractSponsorAmount(user.id, amount);
-    const tier = getTierForTotal(newTotal);
     const qualifyingTiers = getQualifyingTiers(newTotal);
 
     // Roles stack going up, so going down works the same way in reverse:
     // strip any tier role the member no longer qualifies for at the new
     // (lower) total, keep whatever they still qualify for.
-    let roleFieldValue = "None (below 1M)";
+    let roleFieldValue = "None";
 
     try {
       const member = await interaction.guild.members.fetch(user.id);
@@ -89,18 +87,12 @@ module.exports = {
         await member.roles.remove(rolesToRemove);
       }
 
-      const currentRoleMention = tier
-        ? `<@&${tier.roleId}>`
-        : "None (below 1M)";
-
       roleFieldValue = rolesToRemove.length > 0
-        ? `${currentRoleMention} (Removed: ${rolesToRemove.map(id => `<@&${id}>`).join(", ")})`
-        : `${currentRoleMention} (No change)`;
+        ? rolesToRemove.map(id => `<@&${id}>`).join(", ")
+        : "None";
     } catch (error) {
       console.error("❌ Failed to update sponsor role:", error);
-      roleFieldValue = tier
-        ? `<@&${tier.roleId}> (⚠️ role update failed, check my permissions/role position)`
-        : "⚠️ Role update failed, check my permissions/role position";
+      roleFieldValue = "⚠️ Role update failed, check my permissions/role position";
     }
 
     const amountDisplay = formatAmount(amount);
@@ -113,7 +105,7 @@ module.exports = {
         `${user}'s sponsored **${amountDisplay}** got removed\n\n` +
         `**Amount Removed :** ${amountDisplay}\n` +
         `**Total Sponsored :** ${totalDisplay}\n` +
-        `**Role Added/Removed :** ${roleFieldValue}`
+        `**Roles Removed :** ${roleFieldValue}`
       );
 
     await interaction.reply({
