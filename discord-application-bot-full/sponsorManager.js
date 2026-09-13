@@ -89,6 +89,18 @@ function getSponsorTotal(userId) {
   return data[userId] || 0;
 }
 
+// Subtracts `amount` from userId's running total and persists it,
+// clamped so the total never goes below 0. Returns the new total.
+function subtractSponsorAmount(userId, amount) {
+  const data = loadSponsors();
+  const newTotal = Math.max(0, (data[userId] || 0) - amount);
+
+  data[userId] = newTotal;
+  saveSponsors(data);
+
+  return newTotal;
+}
+
 // Returns the config.sponsorRoles.tiers entry matching `total` (the tier
 // the total currently sits in), or null if the total doesn't qualify for
 // any tier yet (under 1M).
@@ -118,6 +130,7 @@ module.exports = {
   parseAmount,
   formatAmount,
   addSponsorAmount,
+  subtractSponsorAmount,
   getSponsorTotal,
   getTierForTotal,
   getQualifyingTiers
