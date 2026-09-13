@@ -89,8 +89,9 @@ function getSponsorTotal(userId) {
   return data[userId] || 0;
 }
 
-// Returns the config.sponsorRoles.tiers entry matching `total`, or null
-// if the total doesn't qualify for any tier yet (under 1M).
+// Returns the config.sponsorRoles.tiers entry matching `total` (the tier
+// the total currently sits in), or null if the total doesn't qualify for
+// any tier yet (under 1M).
 function getTierForTotal(total) {
   const tiers = config.sponsorRoles?.tiers || [];
 
@@ -104,10 +105,20 @@ function getTierForTotal(total) {
   return null;
 }
 
+// Returns every tier whose minimum `total` has reached or passed — i.e.
+// every role a member with this total should hold, from 1M-10M up through
+// whichever tier they've currently reached (roles stack, they aren't
+// swapped out as the member climbs).
+function getQualifyingTiers(total) {
+  const tiers = config.sponsorRoles?.tiers || [];
+  return tiers.filter(tier => total >= tier.min);
+}
+
 module.exports = {
   parseAmount,
   formatAmount,
   addSponsorAmount,
   getSponsorTotal,
-  getTierForTotal
+  getTierForTotal,
+  getQualifyingTiers
 };
