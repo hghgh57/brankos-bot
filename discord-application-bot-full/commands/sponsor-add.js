@@ -9,7 +9,8 @@ const {
   parseAmount,
   formatAmount,
   addSponsorAmount,
-  getTierForTotal
+  getTierForTotal,
+  getQualifyingTiers
 } = require("../sponsorManager");
 
 module.exports = {
@@ -67,28 +68,24 @@ module.exports = {
 
     const newTotal = addSponsorAmount(user.id, amount);
     const tier = getTierForTotal(newTotal);
+    const qualifyingTiers = getQualifyingTiers(newTotal);
 
-    // Assign the earned tier role, swapping out any older tier role so
-    // the member only ever holds the one matching their current total.
+    // Roles stack: a member keeps every tier role at or below the one
+    // they've currently reached, they're never swapped out as they climb.
     let roleMention = "None yet (needs 1M+ total)";
 
     try {
       const member = await interaction.guild.members.fetch(user.id);
-      const tierRoleIds = (config.sponsorRoles?.tiers || []).map(t => t.roleId);
+
+      const rolesToAdd = qualifyingTiers
+        .map(t => t.roleId)
+        .filter(id => !member.roles.cache.has(id));
+
+      if (rolesToAdd.length > 0) {
+        await member.roles.add(rolesToAdd);
+      }
 
       if (tier) {
-        const rolesToRemove = tierRoleIds.filter(
-          id => id !== tier.roleId && member.roles.cache.has(id)
-        );
-
-        if (rolesToRemove.length > 0) {
-          await member.roles.remove(rolesToRemove);
-        }
-
-        if (!member.roles.cache.has(tier.roleId)) {
-          await member.roles.add(tier.roleId);
-        }
-
         roleMention = `<@&${tier.roleId}>`;
       }
     } catch (error) {
